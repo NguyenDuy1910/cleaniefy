@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
+from core.config import database_url
 from main import app
 
 
@@ -131,3 +132,13 @@ def test_all_seeded_template_pages_render_from_the_public_api():
             response = client.get(f"/api/v1/public/partners/{slug}")
             assert response.status_code == 200, response.text
             assert response.json()["site"]["template"] == template
+
+
+def test_neon_database_url_is_the_direct_hosted_database_setting(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "postgresql://ignored:ignored@legacy.example/ignored")
+    monkeypatch.setenv("NEON_DATABASE_URL", "postgresql://neon:password@ep-example-pooler.neon.tech/neondb?sslmode=require")
+    database_url.cache_clear()
+    try:
+        assert database_url() == "postgresql+psycopg://neon:password@ep-example-pooler.neon.tech/neondb?sslmode=require"
+    finally:
+        database_url.cache_clear()

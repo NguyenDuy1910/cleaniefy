@@ -57,9 +57,9 @@ build:
 all: install check build
 
 migrate:
-	@test -n "$(DATABASE_URL)$(NEON_DATABASE_URL)" || (printf '%s\n' 'DATABASE_URL or NEON_DATABASE_URL is required (use the Neon connection string).' >&2; exit 1)
-	cd backend && DATABASE_URL="$(DATABASE_URL)" NEON_DATABASE_URL="$(NEON_DATABASE_URL)" uv run alembic upgrade head
+	@test -n "$(NEON_DATABASE_URL)" || (printf '%s\n' 'NEON_DATABASE_URL is required (use the Neon connection string).' >&2; exit 1)
+	cd backend && NEON_DATABASE_URL="$(NEON_DATABASE_URL)" uv run alembic upgrade head
 
 migration-status:
-	@test -n "$(DATABASE_URL)$(NEON_DATABASE_URL)" || (printf '%s\n' 'DATABASE_URL or NEON_DATABASE_URL is required (use the Neon connection string).' >&2; exit 1)
-	cd backend && DATABASE_URL="$(DATABASE_URL)" NEON_DATABASE_URL="$(NEON_DATABASE_URL)" uv run alembic current
+	@test -n "$(NEON_DATABASE_URL)" || (printf '%s\n' 'NEON_DATABASE_URL is required (use the Neon connection string).' >&2; exit 1)
+	cd backend && NEON_DATABASE_URL="$(NEON_DATABASE_URL)" uv run alembic current

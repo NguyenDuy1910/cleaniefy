@@ -6,10 +6,9 @@ from functools import lru_cache
 
 @lru_cache
 def database_url() -> str:
-    # Vercel's Neon integration supplies DATABASE_URL by default. Supporting the
-    # prefixed name also makes `vercel integration add neon --prefix NEON_` work
-    # without an application-code change.
-    url = os.getenv("DATABASE_URL") or os.getenv("NEON_DATABASE_URL") or "sqlite:///./cleanie.db"
+    # The hosted backend talks directly to Neon through this one explicit
+    # connection variable. SQLite is intentionally local-only demo/test mode.
+    url = os.getenv("NEON_DATABASE_URL") or "sqlite:///./cleanie.db"
     if url.startswith("postgres://"):
         return url.replace("postgres://", "postgresql+psycopg://", 1)
     if url.startswith("postgresql://"):
