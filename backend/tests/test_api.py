@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
@@ -54,3 +55,47 @@ def test_booking_conflict_is_rejected_transactionally():
         second = client.post("/api/v1/public/partners/jessica/bookings", json=payload)
         assert second.status_code == 409
         assert "just booked" in second.json()["detail"]
+
+
+def test_media_upload_uses_the_configured_blob_store(monkeypatch):
+    captured: dict[str, object] = {}
+
+    class FakeBlobClient:
+        def __init__(self, token: str):
+            captured["token"] = token
+
+        async def put(self, path: str, body: bytes, **options):
+            captured.update({"path": path, "body": body, "options": options})
+            return SimpleNamespace(url="https://cleanie-media.public.blob.vercel-storage.com/partners/test/before/image.png")
+
+    monkeypatch.setenv("BLOB_STORE_ID", "cleanie-media")
+    monkeypatch.setenv("BLOB_READ_WRITE_TOKEN", "vercel_blob_rw_cleanie-media_example")
+    monkeypatch.setattr("vercel.blob.AsyncBlobClient", FakeBlobClient)
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/partners/me/media",
+            headers=auth_header(client, "jessica@example.com"),
+            data={"purpose": "before"},
+            files={"file": ("before image.png", b"png-data", "image/png")},
+        )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["url"].startswith("https://cleanie-media.public.blob.vercel-storage.com/")
+    assert captured["token"] == "vercel_blob_rw_cleanie-media_example"
+    assert str(captured["path"]).endswith("/before/before-image.png")
+    assert captured["options"] == {"access": "public", "add_random_suffix": True, "content_type": "image/png"}
+
+
+def test_media_upload_rejects_missing_blob_configuration(monkeypatch):
+    monkeypatch.delenv("BLOB_STORE_ID", raising=False)
+    monkeypatch.delenv("BLOB_READ_WRITE_TOKEN", raising=False)
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/partners/me/media",
+            headers=auth_header(client, "jessica@example.com"),
+            data={"purpose": "before"},
+            files={"file": ("before.png", b"png-data", "image/png")},
+        )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Image storage is not configured."

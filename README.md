@@ -9,7 +9,7 @@ Cleanie gives a cleaning business one polished, mobile-first booking page at `/{
 - `frontend/app/api/v1/[...path]/route.ts` is the narrow same-origin proxy used by browser interactions. It passes requests to the private backend without a public backend URL, reverse proxy, or CORS dependency.
 - Next.js App Router provides the landing page, public partner pages, partner dashboard/editor, and minimal admin UI.
 - FastAPI owns authentication, validation, authorization, tenant-scoped business writes, public renderer data, publishing, availability, and booking conflict prevention.
-- SQLAlchemy 2 models work with PostgreSQL/Neon in hosted environments; local development is zero-config SQLite.
+- SQLAlchemy 2 uses Neon PostgreSQL in hosted environments; local development is zero-config SQLite.
 - Alembic owns the hosted database schema. The initial migration is at `alembic/versions/20260918_0001_initial_schema.py`.
 - Vercel Blob stores partner media in production. FastAPI validates the authenticated owner, file type, and 4 MB size limit before writing Blob metadata URLs into PostgreSQL.
 
@@ -59,9 +59,24 @@ The Jessica demo user is also the seeded local admin.
 
 For a production-shaped local process that starts both services and supplies bindings, use `npx vercel dev` after linking the one Vercel project.
 
-## Database and deployment
+## Neon, Blob, and deployment
 
-Use the service-scoped examples: `backend/.env.example` contains database, auth, and Blob configuration; `frontend/.env.example` contains only local development defaults. `DATABASE_URL` should be a Neon/PostgreSQL SQLAlchemy URL, `AUTH_SECRET` must be a strong unique secret, and `BLOB_READ_WRITE_TOKEN` is required for Blob uploads. Vercel injects `BACKEND_INTERNAL_URL` into the frontend through the service binding, so it should not be set to a public production endpoint.
+Use the service-scoped examples: `backend/.env.example` contains database, auth, and Blob configuration; `frontend/.env.example` contains only local development defaults. The backend reads Vercel's Neon `DATABASE_URL` (or `NEON_DATABASE_URL` when the integration was installed with a `NEON_` prefix), and local development falls back to SQLite only when neither is set.
+
+Connect Neon and Vercel Blob to the Vercel project, then expose these values to the **backend** service in Preview and Production:
+
+```text
+DATABASE_URL=postgresql://…                # supplied by the Neon integration
+AUTH_SECRET=<long, unique random secret>
+BLOB_STORE_ID=<the Blob store URL subdomain>
+BLOB_READ_WRITE_TOKEN=<Vercel Blob read/write token>
+```
+
+The FastAPI upload route passes `BLOB_READ_WRITE_TOKEN` directly to the Blob SDK and verifies that the returned public URL belongs to `BLOB_STORE_ID`. This prevents a token for the wrong store from silently writing partner media elsewhere. Keep both values server-only; the frontend never receives the token. Vercel's Blob SDK requires the read/write token, and Vercel documents Blob URLs as including the store ID. [Blob SDK reference](https://vercel.com/docs/vercel-blob/using-blob-sdk) and [Blob security reference](https://vercel.com/docs/vercel-blob/security).
+
+Vercel's Neon integration injects its database credentials into the project. If you install it with `vercel integration add neon --prefix NEON_`, the backend accepts the resulting `NEON_DATABASE_URL`; otherwise use the default `DATABASE_URL`. [Neon integration guide](https://vercel.com/marketplace/neon/neon).
+
+Vercel injects `BACKEND_INTERNAL_URL` into the frontend through the service binding, so it should not be set to a public production endpoint.
 
 Run migrations against the target database before serving production traffic:
 

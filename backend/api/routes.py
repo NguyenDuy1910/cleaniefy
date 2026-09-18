@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import re
 from datetime import date as Date, datetime, time, timedelta, timezone
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from core.config import blob_storage_credentials
 from core.slugs import RESERVED_PARTNER_SLUGS, suggest_slug, validate_slug
 from db.session import get_db
 from models import AvailabilityRule, Booking, BookingConfig, Partner, PartnerSiteConfig, PortfolioItem, Review, Service, User
@@ -212,10 +214,22 @@ async def upload_media(file: UploadFile = File(...), purpose: str = Form(...), u
     data = await file.read()
     if not data or len(data) > 4 * 1024 * 1024:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Images must be smaller than 4 MB.")
+    credentials = blob_storage_credentials()
+    if not credentials:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Image storage is not configured.")
+    store_id, token = credentials
     try:
         from vercel.blob import AsyncBlobClient
         safe_name = re.sub(r"[^a-zA-Z0-9._-]", "-", file.filename or "image")
-        blob = await AsyncBlobClient().put(f"partners/{partner.id}/{purpose}/{safe_name}", data, access="public", add_random_suffix=True, content_type=file.content_type)
+        blob = await AsyncBlobClient(token=token).put(
+            f"partners/{partner.id}/{purpose}/{safe_name}",
+            data,
+            access="public",
+            add_random_suffix=True,
+            content_type=file.content_type,
+        )
+        if urlparse(blob.url).hostname != f"{store_id}.public.blob.vercel-storage.com":
+            raise RuntimeError("The configured Vercel Blob store does not match the upload token.")
     except Exception as error:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Image storage is unavailable. Please try again shortly.") from error
     return {"url": blob.url}
