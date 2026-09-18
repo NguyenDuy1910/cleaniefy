@@ -37,6 +37,17 @@ The full FastAPI surface is prefixed with `/api/v1`. Important endpoints include
 
 ## Local development
 
+The root Makefile is the quickest way to work across both services:
+
+```bash
+make install  # bun install + uv sync
+make dev      # FastAPI on :8000 and Next.js on :3000
+```
+
+Use `make check` for type checking, linting, and tests; `make build` for the production frontend build; and `make all` to install, verify, and build the whole project.
+
+The equivalent explicit commands are:
+
 ```bash
 (cd frontend && bun install)
 (cd backend && uv sync)
@@ -81,7 +92,7 @@ Vercel injects `BACKEND_INTERNAL_URL` into the frontend through the service bind
 Run migrations against the target database before serving production traffic:
 
 ```bash
-(cd backend && DATABASE_URL='postgresql+psycopg://…' uv run alembic upgrade head)
+make migrate DATABASE_URL='postgresql+psycopg://…'
 ```
 
 `vercel.json` declares both service roots explicitly, binds `backend` to `frontend`, and routes public traffic only to `frontend`. On Vercel, connect a public Blob store to the project and make backend environment variables available to Preview and Production. Do not run local SQLite auto-creation in PostgreSQL; apply Alembic migrations instead.
@@ -89,10 +100,8 @@ Run migrations against the target database before serving production traffic:
 ## Checks
 
 ```bash
-(cd frontend && bun run typecheck)
-(cd frontend && bun run lint)
-(cd frontend && bun run build)
-(cd backend && uv run pytest -q)
+make check
+make build
 ```
 
 The API tests cover public publish visibility, reserved slugs, partner tenant isolation, and a repeated booking conflict.
