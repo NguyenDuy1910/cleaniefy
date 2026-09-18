@@ -5,6 +5,7 @@
 
 # Next.js and deployment output
 /.next/
+/.next-dev/
 /out/
 /.vercel/
 /.turbo/
