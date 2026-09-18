@@ -1,0 +1,37 @@
+{
+  "files.exclude": {
+    "**/.DS_Store": true,
+    "**/.next": true,
+    "**/.pytest_cache": true,
+    "**/.venv": true,
+    "**/__pycache__": true,
+    "**/coverage": true,
+    "**/htmlcov": true,
+    "**/node_modules": true,
+    "**/*.db": true,
+    "**/*.log": true,
+    "**/*.py[cod]": true,
+    "**/*.tsbuildinfo": true,
+    "**/.env": true,
+    "**/.env.local": true
+  },
+  "search.exclude": {
+    "**/.next": true,
+    "**/.pytest_cache": true,
+    "**/.venv": true,
+    "**/__pycache__": true,
+    "**/coverage": true,
+    "**/htmlcov": true,
+    "**/node_modules": true,
+    "**/*.db": true,
+    "**/*.log": true,
+    "**/*.py[cod]": true,
+    "**/*.tsbuildinfo": true
+  },
+  "files.watcherExclude": {
+    "**/.next/**": true,
+    "**/.venv/**": true,
+    "**/__pycache__/**": true,
+    "**/node_modules/**": true
+  }
+}
