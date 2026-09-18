@@ -44,7 +44,7 @@ class ThemeConfig(Schema):
 
 
 class ThemeUpdate(Schema):
-    template: Literal["clean", "warm-home", "pro"] | None = None
+    template: Literal["clean", "warm-home", "pro", "fresh-start", "signature", "eco-calm", "move-ready", "bright-home", "studio-luxe", "neighborly"] | None = None
     theme: ThemeConfig | None = None
 
 

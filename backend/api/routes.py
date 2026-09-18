@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from core.config import blob_storage_credentials
 from core.slugs import RESERVED_PARTNER_SLUGS, suggest_slug, validate_slug
+from core.templates import template_theme
 from db.session import get_db
 from models import AvailabilityRule, Booking, BookingConfig, Partner, PartnerSiteConfig, PortfolioItem, Review, Service, User
 from schemas import (AvailabilityUpdate, BookingConfigUpdate, Login, PartnerUpdate, PortfolioCreate, PublicBookingCreate, ReviewCreate, SectionsConfig, ServiceCreate, ServiceUpdate, SignUp, ThemeUpdate)
@@ -120,7 +121,11 @@ def update_partner(payload: PartnerUpdate, user: User = Depends(current_user), d
 @router.put("/partners/me/theme")
 def update_theme(payload: ThemeUpdate, user: User = Depends(current_user), db: Session = Depends(get_db)):
     partner = owned_partner(db, user); config = partner.site_config
-    if payload.template is not None: config.template = payload.template
+    if payload.template is not None:
+        config.template = payload.template
+        # Direct API consumers receive a complete, usable design even when they
+        # only select a template. The dashboard can still send a custom theme.
+        if payload.theme is None: config.theme_config = template_theme(payload.template)
     if payload.theme is not None: config.theme_config = payload.theme.model_dump(by_alias=True)
     db.commit(); db.refresh(config)
     return site_dict(partner)

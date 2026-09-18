@@ -68,6 +68,12 @@ cleanie-demo
 
 The Jessica demo user is also the seeded local admin.
 
+### Template end-to-end flow
+
+Local startup seeds 10 published pages—one for each selectable template—so every public composition is backed by the same FastAPI payload used in production. Open `/jessica`, `/warm-demo`, `/sparkle`, `/fresh-start`, `/signature-clean`, `/green-room`, `/move-ready`, `/bright-home`, `/studio-luxe`, or `/neighborly` to inspect them. All demo accounts use `cleanie-demo` as their password.
+
+To exercise the owner flow end to end, log in as one of those demo users, choose a card in **Dashboard → Overview** (or **Page → Theme**), and open that partner’s live URL. The dashboard sends the selection to `PUT /api/v1/partners/me/theme`; FastAPI persists the template and preset theme; the public Next.js page then renders the same saved services, gallery, reviews, availability, and booking flow in the selected composition.
+
 For a production-shaped local process that starts both services and supplies bindings, use `npx vercel dev` after linking the one Vercel project.
 
 ## Neon, Blob, and deployment

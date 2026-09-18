@@ -6,9 +6,9 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from core.templates import template_theme
 from models import AvailabilityRule, Booking, BookingConfig, Partner, PartnerSiteConfig, PortfolioItem, Review, Service, User
 
-DEFAULT_THEME = {"primaryColor": "#26573d", "backgroundTone": "light", "fontPreset": "modern", "buttonStyle": "soft"}
 DEFAULT_SECTIONS = {"services": True, "portfolio": True, "reviews": True, "about": True}
 DEFAULT_FIELDS = {"name": True, "phone": True, "email": False, "address": True, "notes": False}
 
@@ -16,7 +16,7 @@ DEFAULT_FIELDS = {"name": True, "phone": True, "email": False, "address": True, 
 def install_defaults(db: Session, partner: Partner, template: str = "clean") -> None:
     # Attach defaults through relationships so they are usable in the same transaction,
     # including immediately after an account is created or seeded.
-    partner.site_config = PartnerSiteConfig(partner_id=partner.id, template=template, theme_config=DEFAULT_THEME.copy(), sections_config=DEFAULT_SECTIONS.copy())
+    partner.site_config = PartnerSiteConfig(partner_id=partner.id, template=template, theme_config=template_theme(template), sections_config=DEFAULT_SECTIONS.copy())
     partner.availability = AvailabilityRule(partner_id=partner.id)
     partner.booking_config = BookingConfig(partner_id=partner.id, required_fields=DEFAULT_FIELDS.copy())
     db.add_all([partner.site_config, partner.availability, partner.booking_config])

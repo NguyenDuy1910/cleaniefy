@@ -99,3 +99,35 @@ def test_media_upload_rejects_missing_blob_configuration(monkeypatch):
 
     assert response.status_code == 503
     assert response.json()["detail"] == "Image storage is not configured."
+
+
+def test_extended_template_selection_persists_a_backend_preset():
+    with TestClient(app) as client:
+        headers = auth_header(client, "jessica@example.com")
+        original = client.get("/api/v1/partners/me", headers=headers).json()["site"]
+        response = client.put("/api/v1/partners/me/theme", headers=headers, json={"template": "eco-calm"})
+        assert response.status_code == 200, response.text
+        assert response.json()["template"] == "eco-calm"
+        assert response.json()["theme"]["primaryColor"] == "#4f6f52"
+        restore = client.put("/api/v1/partners/me/theme", headers=headers, json=original)
+        assert restore.status_code == 200, restore.text
+
+
+def test_all_seeded_template_pages_render_from_the_public_api():
+    expected_templates = {
+        "jessica": "clean",
+        "warm-demo": "warm-home",
+        "sparkle": "pro",
+        "fresh-start": "fresh-start",
+        "signature-clean": "signature",
+        "green-room": "eco-calm",
+        "move-ready": "move-ready",
+        "bright-home": "bright-home",
+        "studio-luxe": "studio-luxe",
+        "neighborly": "neighborly",
+    }
+    with TestClient(app) as client:
+        for slug, template in expected_templates.items():
+            response = client.get(f"/api/v1/public/partners/{slug}")
+            assert response.status_code == 200, response.text
+            assert response.json()["site"]["template"] == template

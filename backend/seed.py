@@ -14,16 +14,23 @@ DEMO_USERS = (
     ("jessica@example.com", "Jessica's Home Care", "jessica", "clean", "Thoughtful cleaning for busy families.", "Austin, TX", "/demo/jessica.png"),
     ("warm@example.com", "Warm Home Cleaning", "warm-demo", "warm-home", "The neighborhood clean that feels like home.", "Austin, TX", "/demo/warm-home.png"),
     ("sparkle@example.com", "Sparkle Austin", "sparkle", "pro", "Home & office cleaning you can count on.", "Austin, TX", "/demo/jessica.png"),
+    ("fresh@example.com", "Fresh Start Cleaning", "fresh-start", "fresh-start", "A clear home and a lighter week, starting here.", "Austin, TX", "/demo/warm-home.png"),
+    ("signature@example.com", "The Signature Clean", "signature-clean", "signature", "Thoughtful details, beautifully finished.", "Austin, TX", "/demo/jessica.png"),
+    ("eco@example.com", "Green Room Care", "green-room", "eco-calm", "Gentle on your home, mindful of every surface.", "Austin, TX", "/demo/warm-home.png"),
+    ("move@example.com", "Move Ready Austin", "move-ready", "move-ready", "The clean handoff your next chapter deserves.", "Austin, TX", "/demo/jessica.png"),
+    ("bright@example.com", "Bright Home Co.", "bright-home", "bright-home", "A little more light in every room.", "Austin, TX", "/demo/warm-home.png"),
+    ("studio@example.com", "Studio Luxe Cleaning", "studio-luxe", "studio-luxe", "Concierge-level care for spaces with standards.", "Austin, TX", "/demo/jessica.png"),
+    ("neighbor@example.com", "Neighborly Clean", "neighborly", "neighborly", "The local clean you can feel good about.", "Austin, TX", "/demo/warm-home.png"),
 )
 
 
 def seed_demo_data() -> None:
     db = SessionLocal()
     try:
-        if db.scalar(select(User.id).where(User.email == "jessica@example.com")):
-            return
         partners: list[Partner] = []
         for index, (email, name, slug, template, tagline, area, image) in enumerate(DEMO_USERS):
+            if db.scalar(select(User.id).where(User.email == email)):
+                continue
             user = User(email=email, password_hash=hash_password("cleanie-demo"), is_admin=index == 0)
             db.add(user); db.flush()
             partner = Partner(owner_user_id=user.id, business_name=name, slug=slug, tagline=tagline, service_area=area, profile_image_url=image, hero_image_url=image, about=f"{name} brings reliable, detail-minded care to every home. We arrive prepared, respect your space, and leave things feeling genuinely refreshed.", status="published", published_at=datetime.now(timezone.utc))
@@ -47,9 +54,11 @@ def seed_demo_data() -> None:
             ])
             partners.append(partner)
         db.flush()
-        tomorrow = datetime.now(timezone.utc).replace(hour=10, minute=0, second=0, microsecond=0) + timedelta(days=1)
-        first = partners[0]; service = db.scalar(select(Service).where(Service.partner_id == first.id).order_by(Service.sort_order))
-        db.add(Booking(partner_id=first.id, service_id=service.id, customer_name="Sarah Johnson", customer_phone="(512) 555-0194", customer_address="1804 Oak Street, Austin", scheduled_start=tomorrow, scheduled_end=tomorrow + timedelta(minutes=service.duration_minutes), price_cents=service.price_cents))
+        first = next((partner for partner in partners if partner.slug == "jessica"), None)
+        if first:
+            tomorrow = datetime.now(timezone.utc).replace(hour=10, minute=0, second=0, microsecond=0) + timedelta(days=1)
+            service = db.scalar(select(Service).where(Service.partner_id == first.id).order_by(Service.sort_order))
+            db.add(Booking(partner_id=first.id, service_id=service.id, customer_name="Sarah Johnson", customer_phone="(512) 555-0194", customer_address="1804 Oak Street, Austin", scheduled_start=tomorrow, scheduled_end=tomorrow + timedelta(minutes=service.duration_minutes), price_cents=service.price_cents))
         db.commit()
     finally:
         db.close()
