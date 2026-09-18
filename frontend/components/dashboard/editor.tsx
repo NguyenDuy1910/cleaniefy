@@ -69,6 +69,12 @@ const editorPreview = (overview: Overview): PublicSite => ({
     views: overview.metrics.views,
   },
 });
+type PreviewUpdate = {
+  partner?: Partial<PublicSite["partner"]>;
+  site?: Partial<PublicSite["site"]>;
+  availability?: PublicSite["availability"];
+  booking?: PublicSite["booking"];
+};
 const displayError = (error: unknown) =>
   error instanceof ApiError
     ? error.message
@@ -76,13 +82,18 @@ const displayError = (error: unknown) =>
 
 export function Editor() {
   const [overview, setOverview] = useState<Overview | null>(null);
+  const [preview, setPreview] = useState<PublicSite | null>(null);
+  const [previewVersion, setPreviewVersion] = useState(0);
   const [tab, setTab] = useState<Tab>("brand");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const reload = () =>
     getPartnerOverview()
-      .then(setOverview)
+      .then((nextOverview) => {
+        setOverview(nextOverview);
+        setPreview(editorPreview(nextOverview));
+      })
       .catch((err) => setError(displayError(err)));
   useEffect(() => {
     reload();
@@ -110,7 +121,24 @@ export function Editor() {
       setBusy(false);
     }
   };
-  if (!overview)
+  const updatePreview = (update: PreviewUpdate) => {
+    setPreview(
+      (current) =>
+        current && {
+          ...current,
+          partner: update.partner
+            ? { ...current.partner, ...update.partner }
+            : current.partner,
+          site: update.site
+            ? { ...current.site, ...update.site }
+            : current.site,
+          availability: update.availability ?? current.availability,
+          booking: update.booking ?? current.booking,
+        },
+    );
+    setPreviewVersion((version) => version + 1);
+  };
+  if (!overview || !preview)
     return (
       <DashboardFrame active="editor">
         <div className="dashboard-loading">
@@ -118,7 +146,6 @@ export function Editor() {
         </div>
       </DashboardFrame>
     );
-  const preview = editorPreview(overview);
   return (
     <DashboardFrame active="editor" partnerSlug={overview.partner.slug}>
       <div className="editor-top">
@@ -186,10 +213,17 @@ export function Editor() {
             <BrandEditor
               overview={overview}
               busy={busy}
+              onPreview={(partner) => updatePreview({ partner })}
               onSave={(data) =>
                 run("Brand saved.", () => updatePartnerProfile(data))
               }
-              onUpload={(file, purpose) =>
+              onUpload={(file, purpose) => {
+                updatePreview({
+                  partner:
+                    purpose === "profile"
+                      ? { profileImageUrl: URL.createObjectURL(file) }
+                      : { heroImageUrl: URL.createObjectURL(file) },
+                });
                 run("Image uploaded.", async () => {
                   const result = await uploadMedia(file, purpose);
                   await updatePartnerProfile(
@@ -197,14 +231,15 @@ export function Editor() {
                       ? { profileImageUrl: result.url }
                       : { heroImageUrl: result.url },
                   );
-                })
-              }
+                });
+              }}
             />
           )}{" "}
           {tab === "theme" && (
             <ThemeEditor
               overview={overview}
               busy={busy}
+              onPreview={(site) => updatePreview({ site })}
               onSave={(value) => run("Theme saved.", () => updateTheme(value))}
             />
           )}{" "}
@@ -212,6 +247,7 @@ export function Editor() {
             <ContentEditor
               overview={overview}
               busy={busy}
+              onPreview={(sections) => updatePreview({ site: { sections } })}
               onSave={(sections) =>
                 run("Section visibility saved.", () => updateSections(sections))
               }
@@ -227,12 +263,17 @@ export function Editor() {
             <ReviewsEditor overview={overview} busy={busy} run={run} />
           )}{" "}
           {tab === "booking" && (
-            <BookingEditor overview={overview} busy={busy} run={run} />
+            <BookingEditor
+              overview={overview}
+              busy={busy}
+              run={run}
+              onPreview={updatePreview}
+            />
           )}
         </section>
         <aside className="editor-preview">
           <span>LIVE PREVIEW</span>
-          <div className="preview-phone">
+          <div className="preview-phone" key={previewVersion}>
             <SiteRenderer site={preview} compact interactive={false} />
           </div>
         </aside>
@@ -246,11 +287,13 @@ function BrandEditor({
   busy,
   onSave,
   onUpload,
+  onPreview,
 }: {
   overview: Overview;
   busy: boolean;
   onSave: (value: Record<string, string>) => void;
   onUpload: (file: File, purpose: "profile" | "hero") => void;
+  onPreview: (value: Partial<PublicSite["partner"]>) => void;
 }) {
   const [slugState, setSlugState] = useState(overview.partner.slug);
   return (
@@ -306,6 +349,7 @@ function BrandEditor({
         <input
           name="businessName"
           defaultValue={overview.partner.businessName}
+          onChange={(event) => onPreview({ businessName: event.target.value })}
           required
         />
       </label>
@@ -315,11 +359,13 @@ function BrandEditor({
           <span>cleanie.app/</span>
           <input
             value={slugState}
-            onChange={(event) =>
-              setSlugState(
-                event.target.value.toLowerCase().replace(/\s+/g, "-"),
-              )
-            }
+            onChange={(event) => {
+              const slug = event.target.value
+                .toLowerCase()
+                .replace(/\s+/g, "-");
+              setSlugState(slug);
+              onPreview({ slug });
+            }}
             required
           />
         </div>
@@ -329,6 +375,7 @@ function BrandEditor({
         <input
           name="tagline"
           defaultValue={overview.partner.tagline}
+          onChange={(event) => onPreview({ tagline: event.target.value })}
           required
         />
       </label>
@@ -337,6 +384,7 @@ function BrandEditor({
         <input
           name="serviceArea"
           defaultValue={overview.partner.serviceArea}
+          onChange={(event) => onPreview({ serviceArea: event.target.value })}
           required
         />
       </label>
@@ -347,6 +395,7 @@ function BrandEditor({
           rows={4}
           defaultValue={overview.partner.about || ""}
           placeholder="A short, welcoming introduction."
+          onChange={(event) => onPreview({ about: event.target.value })}
         />
       </label>
       <button className="button" disabled={busy}>
@@ -360,16 +409,25 @@ function ThemeEditor({
   overview,
   busy,
   onSave,
+  onPreview,
 }: {
   overview: Overview;
   busy: boolean;
   onSave: (value: { template?: TemplateKey; theme?: ThemeConfig }) => void;
+  onPreview: (value: PreviewUpdate["site"]) => void;
 }) {
   const [theme, setTheme] = useState<ThemeConfig>(overview.site.theme);
   const [template, setTemplate] = useState<TemplateKey>(overview.site.template);
   const selectTemplate = (value: TemplateKey) => {
+    const nextTheme = { ...getTemplateDefinition(value).theme };
     setTemplate(value);
-    setTheme(getTemplateDefinition(value).theme);
+    setTheme(nextTheme);
+    onPreview({ template: value, theme: nextTheme });
+  };
+  const updateThemePreview = (update: Partial<ThemeConfig>) => {
+    const nextTheme = { ...theme, ...update };
+    setTheme(nextTheme);
+    onPreview({ template, theme: nextTheme });
   };
   return (
     <form
@@ -403,7 +461,7 @@ function ThemeEditor({
               className={theme.primaryColor === color ? "selected" : ""}
               key={color}
               style={{ backgroundColor: color }}
-              onClick={() => setTheme({ ...theme, primaryColor: color })}
+              onClick={() => updateThemePreview({ primaryColor: color })}
             >
               <span className="sr-only">Use {color}</span>
             </button>
@@ -416,14 +474,14 @@ function ThemeEditor({
           <button
             type="button"
             className={theme.fontPreset === "modern" ? "selected" : ""}
-            onClick={() => setTheme({ ...theme, fontPreset: "modern" })}
+            onClick={() => updateThemePreview({ fontPreset: "modern" })}
           >
             Modern
           </button>
           <button
             type="button"
             className={theme.fontPreset === "soft" ? "selected" : ""}
-            onClick={() => setTheme({ ...theme, fontPreset: "soft" })}
+            onClick={() => updateThemePreview({ fontPreset: "soft" })}
           >
             Soft
           </button>
@@ -435,14 +493,14 @@ function ThemeEditor({
           <button
             type="button"
             className={theme.buttonStyle === "soft" ? "selected" : ""}
-            onClick={() => setTheme({ ...theme, buttonStyle: "soft" })}
+            onClick={() => updateThemePreview({ buttonStyle: "soft" })}
           >
             Soft
           </button>
           <button
             type="button"
             className={theme.buttonStyle === "pill" ? "selected" : ""}
-            onClick={() => setTheme({ ...theme, buttonStyle: "pill" })}
+            onClick={() => updateThemePreview({ buttonStyle: "pill" })}
           >
             Pill
           </button>
@@ -459,10 +517,12 @@ function ContentEditor({
   overview,
   busy,
   onSave,
+  onPreview,
 }: {
   overview: Overview;
   busy: boolean;
   onSave: (value: Overview["site"]["sections"]) => void;
+  onPreview: (value: Overview["site"]["sections"]) => void;
 }) {
   const [sections, setSections] = useState(overview.site.sections);
   const labels: [keyof typeof sections, string, string][] = [
@@ -492,9 +552,11 @@ function ContentEditor({
             <input
               type="checkbox"
               checked={sections[key]}
-              onChange={() =>
-                setSections({ ...sections, [key]: !sections[key] })
-              }
+              onChange={() => {
+                const nextSections = { ...sections, [key]: !sections[key] };
+                setSections(nextSections);
+                onPreview(nextSections);
+              }}
             />
             <i />
           </label>
@@ -877,14 +939,26 @@ function BookingEditor({
   overview,
   busy,
   run,
+  onPreview,
 }: {
   overview: Overview;
   busy: boolean;
   run: (message: string, action: () => Promise<unknown>) => void;
+  onPreview: (update: PreviewUpdate) => void;
 }) {
   const [config, setConfig] = useState<BookingConfig>(overview.booking);
   const [availability, setAvailability] = useState(overview.availability);
   const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const updateAvailabilityPreview = (
+    nextAvailability: PublicSite["availability"],
+  ) => {
+    setAvailability(nextAvailability);
+    onPreview({ availability: nextAvailability });
+  };
+  const updateBookingPreview = (nextConfig: BookingConfig) => {
+    setConfig(nextConfig);
+    onPreview({ booking: nextConfig });
+  };
   const save = () =>
     run("Booking settings saved.", async () => {
       await updateAvailability(availability);
@@ -906,14 +980,15 @@ function BookingEditor({
               type="button"
               className={availability.weekdays.includes(day) ? "selected" : ""}
               key={label}
-              onClick={() =>
-                setAvailability({
+              onClick={() => {
+                const nextAvailability = {
                   ...availability,
                   weekdays: availability.weekdays.includes(day)
                     ? availability.weekdays.filter((item) => item !== day)
                     : [...availability.weekdays, day].sort(),
-                })
-              }
+                };
+                updateAvailabilityPreview(nextAvailability);
+              }}
             >
               {label}
             </button>
@@ -927,7 +1002,7 @@ function BookingEditor({
             type="time"
             value={availability.startTime}
             onChange={(event) =>
-              setAvailability({
+              updateAvailabilityPreview({
                 ...availability,
                 startTime: event.target.value,
               })
@@ -940,7 +1015,10 @@ function BookingEditor({
             type="time"
             value={availability.endTime}
             onChange={(event) =>
-              setAvailability({ ...availability, endTime: event.target.value })
+              updateAvailabilityPreview({
+                ...availability,
+                endTime: event.target.value,
+              })
             }
           />
         </label>
@@ -950,7 +1028,7 @@ function BookingEditor({
         <input
           value={config.ctaLabel}
           onChange={(event) =>
-            setConfig({ ...config, ctaLabel: event.target.value })
+            updateBookingPreview({ ...config, ctaLabel: event.target.value })
           }
         />
       </label>
@@ -968,7 +1046,7 @@ function BookingEditor({
                   type="checkbox"
                   checked={config.requiredFields[field]}
                   onChange={() =>
-                    setConfig({
+                    updateBookingPreview({
                       ...config,
                       requiredFields: {
                         ...config.requiredFields,
@@ -989,7 +1067,9 @@ function BookingEditor({
           <input
             type="radio"
             checked={config.paymentMode === "none"}
-            onChange={() => setConfig({ ...config, paymentMode: "none" })}
+            onChange={() =>
+              updateBookingPreview({ ...config, paymentMode: "none" })
+            }
           />{" "}
           No online payment
         </label>
@@ -1006,7 +1086,10 @@ function BookingEditor({
           rows={3}
           value={config.confirmationMessage}
           onChange={(event) =>
-            setConfig({ ...config, confirmationMessage: event.target.value })
+            updateBookingPreview({
+              ...config,
+              confirmationMessage: event.target.value,
+            })
           }
         />
       </label>
