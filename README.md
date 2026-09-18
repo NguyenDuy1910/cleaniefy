@@ -38,15 +38,13 @@ The full FastAPI surface is prefixed with `/api/v1`. Important endpoints include
 ## Local development
 
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -r backend/requirements.txt
-(cd frontend && npm install)
+(cd frontend && bun install)
 
 # terminal one — FastAPI starts with SQLite and seeds the demos
-(cd backend && ../.venv/bin/uvicorn main:app --reload --port 8000)
+(cd backend && uv run --with-requirements requirements.txt uvicorn main:app --reload --port 8000)
 
 # terminal two — Next proxies browser requests and calls FastAPI directly for SSR
-(cd frontend && BACKEND_INTERNAL_URL=http://127.0.0.1:8000 npm run dev)
+(cd frontend && BACKEND_INTERNAL_URL=http://127.0.0.1:8000 bun run dev)
 ```
 
 Open `http://localhost:3000/jessica`. Use the demo partner account in the login form:
@@ -67,7 +65,7 @@ Use the service-scoped examples: `backend/.env.example` contains database, auth,
 Run migrations against the target database before serving production traffic:
 
 ```bash
-(cd backend && DATABASE_URL='postgresql+psycopg://…' ../.venv/bin/alembic upgrade head)
+(cd backend && DATABASE_URL='postgresql+psycopg://…' uv run --with-requirements requirements.txt alembic upgrade head)
 ```
 
 `vercel.json` declares both service roots explicitly, binds `backend` to `frontend`, and routes public traffic only to `frontend`. On Vercel, connect a public Blob store to the project and make backend environment variables available to Preview and Production. Do not run local SQLite auto-creation in PostgreSQL; apply Alembic migrations instead.
@@ -75,10 +73,10 @@ Run migrations against the target database before serving production traffic:
 ## Checks
 
 ```bash
-(cd frontend && npm run typecheck)
-(cd frontend && npm run lint)
-(cd frontend && npm run build)
-(cd backend && ../.venv/bin/pytest -q)
+(cd frontend && bun run typecheck)
+(cd frontend && bun run lint)
+(cd frontend && bun run build)
+(cd backend && uv run --with-requirements requirements.txt pytest -q)
 ```
 
 The API tests cover public publish visibility, reserved slugs, partner tenant isolation, and a repeated booking conflict.
