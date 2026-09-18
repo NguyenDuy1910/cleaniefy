@@ -39,9 +39,10 @@ The full FastAPI surface is prefixed with `/api/v1`. Important endpoints include
 
 ```bash
 (cd frontend && bun install)
+(cd backend && uv sync)
 
 # terminal one — FastAPI starts with SQLite and seeds the demos
-(cd backend && uv run --with-requirements requirements.txt uvicorn main:app --reload --port 8000)
+(cd backend && uv run uvicorn main:app --reload --port 8000)
 
 # terminal two — Next proxies browser requests and calls FastAPI directly for SSR
 (cd frontend && BACKEND_INTERNAL_URL=http://127.0.0.1:8000 bun run dev)
@@ -65,7 +66,7 @@ Use the service-scoped examples: `backend/.env.example` contains database, auth,
 Run migrations against the target database before serving production traffic:
 
 ```bash
-(cd backend && DATABASE_URL='postgresql+psycopg://…' uv run --with-requirements requirements.txt alembic upgrade head)
+(cd backend && DATABASE_URL='postgresql+psycopg://…' uv run alembic upgrade head)
 ```
 
 `vercel.json` declares both service roots explicitly, binds `backend` to `frontend`, and routes public traffic only to `frontend`. On Vercel, connect a public Blob store to the project and make backend environment variables available to Preview and Production. Do not run local SQLite auto-creation in PostgreSQL; apply Alembic migrations instead.
@@ -76,7 +77,7 @@ Run migrations against the target database before serving production traffic:
 (cd frontend && bun run typecheck)
 (cd frontend && bun run lint)
 (cd frontend && bun run build)
-(cd backend && uv run --with-requirements requirements.txt pytest -q)
+(cd backend && uv run pytest -q)
 ```
 
 The API tests cover public publish visibility, reserved slugs, partner tenant isolation, and a repeated booking conflict.
