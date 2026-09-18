@@ -1,0 +1,28 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { CalendarDays, Check, Copy, ExternalLink, LayoutTemplate, LoaderCircle, Palette, Share2 } from "lucide-react";
+import { ApiError, getPartnerOverview, updateTheme } from "@/lib/api/client";
+import type { Overview, TemplateKey } from "@/lib/types";
+
+const templates: { key: TemplateKey; title: string; description: string; color: string }[] = [
+  { key: "clean", title: "Clean", description: "Minimal · solo cleaner", color: "#26573d" },
+  { key: "warm-home", title: "Warm Home", description: "Friendly · residential", color: "#8f5733" },
+  { key: "pro", title: "Pro", description: "Structured · cleaning team", color: "#243873" },
+];
+const money = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
+
+export function DashboardHome() {
+  const [overview, setOverview] = useState<Overview | null>(null); const [error, setError] = useState(""); const [copied, setCopied] = useState(false); const [saving, setSaving] = useState<TemplateKey | null>(null);
+  const load = () => getPartnerOverview().then(setOverview).catch((err) => setError(err instanceof ApiError ? err.message : "Unable to load your page."));
+  useEffect(() => { load(); }, []);
+  const copy = async () => { if (!overview) return; await navigator.clipboard.writeText(`${location.origin}/${overview.partner.slug}`); setCopied(true); setTimeout(() => setCopied(false), 1600); };
+  const selectTemplate = async (key: TemplateKey) => { setSaving(key); try { await updateTheme({ template: key }); await load(); } catch (err) { setError(err instanceof ApiError ? err.message : "Couldn’t change template."); } finally { setSaving(null); } };
+  if (error) return <DashboardFrame><div className="dashboard-error"><h1>We couldn&apos;t open your dashboard.</h1><p>{error}</p><Link className="button" href="/login">Log in again</Link></div></DashboardFrame>;
+  if (!overview) return <DashboardFrame><div className="dashboard-loading"><LoaderCircle className="spin"/> Loading your Cleanie page…</div></DashboardFrame>;
+  const url = `${typeof window === "undefined" ? "cleanie.app" : location.host}/${overview.partner.slug}`;
+  return <DashboardFrame active="overview"><header className="dashboard-heading"><div><h1>Good morning</h1><p>{overview.partner.status === "published" ? "Your page is live and ready to share." : "Your draft is ready to make your own."}</p></div><Link className="button" href="/dashboard/editor"><Palette size={16}/> Edit page</Link></header><section className="current-page-card"><div><span>YOUR PAGE</span><a href={`/${overview.partner.slug}`} target="_blank">{url}<ExternalLink size={13}/></a><p>{overview.metrics.views} views · {overview.metrics.bookingCount} bookings · {overview.metrics.rating.toFixed(1)} rating</p></div><div className="page-actions"><Link className="button secondary small" href="/dashboard/editor">Edit page</Link><button className="button small" onClick={copy}>{copied ? <Check size={14}/> : <Copy size={14}/>} {copied ? "Copied" : "Share page"}</button></div></section><section className="dashboard-section"><div className="section-title"><div><h2>Start from a template</h2><p>Pick a proven cleaning layout. Your content stays when you switch.</p></div><LayoutTemplate size={21}/></div><div className="template-cards">{templates.map((template) => <article className={`template-card ${overview.site.template === template.key ? "selected" : ""}`} key={template.key}><div className={`template-mini ${template.key}`}><div className="template-mini-head"><div/><span/></div><b>{overview.partner.businessName}</b><small>★★★★★ {overview.metrics.rating.toFixed(1)}</small><i/><i/></div><h3>{template.title}</h3><p>{template.description}</p><div><a href={`/${overview.partner.slug}`} target="_blank">Preview</a><button disabled={saving === template.key || overview.site.template === template.key} style={{ backgroundColor: template.color }} onClick={() => selectTemplate(template.key)}>{saving === template.key ? "Saving…" : overview.site.template === template.key ? "Selected" : "Use template"}</button></div></article>)}</div></section><section className="dashboard-section today"><div className="section-title"><div><h2>Today&apos;s bookings</h2><p>Where, when, and how much—nothing extra.</p></div><CalendarDays size={21}/></div>{overview.todayBookings.length ? <div className="today-list">{overview.todayBookings.map((booking) => <article key={booking.id}><time>{new Date(booking.scheduledStart).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</time><div><b>{booking.customerName}</b><span>{booking.service?.name} · {booking.customerAddress || "Address to confirm"}</span></div><strong>{money(booking.priceCents)}</strong></article>)}</div> : <div className="empty-bookings">No bookings scheduled today. Share your page to get the next one in.</div>}</section></DashboardFrame>;
+}
+
+export function DashboardFrame({ children, active = "" }: { children: React.ReactNode; active?: string }) { return <div className="dashboard-layout"><aside className="dashboard-sidebar"><Link className="wordmark" href="/dashboard">cleanie</Link><nav><Link className={active === "overview" ? "active" : ""} href="/dashboard">Overview</Link><Link className={active === "editor" ? "active" : ""} href="/dashboard/editor">Page</Link><Link className={active === "bookings" ? "active" : ""} href="/dashboard/bookings">Bookings</Link><Link href="/dashboard/editor?tab=booking">Settings</Link></nav><Link className="sidebar-view" href="/jessica"><Share2 size={14}/> View live page</Link></aside><main className="dashboard-main">{children}</main></div>; }
