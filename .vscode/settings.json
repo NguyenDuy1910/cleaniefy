@@ -12,7 +12,7 @@
     "**/*.log": true,
     "**/*.py[cod]": true,
     "**/*.tsbuildinfo": true,
-    "**/.env": true,
+    // "**/.env": true,
     "**/.env.local": true
   },
   "search.exclude": {

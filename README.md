@@ -1,117 +1,118 @@
-# Cleanie V1
+# Cleanie
 
-Cleanie gives a cleaning business one polished, mobile-first booking page at `/{partnerSlug}`. Partners choose one of three focused templates, customize only meaningful conversion details, publish the same URL, and receive bookings without a separate deployment per partner.
+Cleanie gives each cleaning business one focused booking page at
+`/{partnerSlug}`. Partners choose a template, add proof and services, set
+availability, then publish the same link they share with customers.
 
-## Services architecture
+## Architecture
 
-- This repository uses [Vercel Services](https://vercel.com/blog/vercel-services-run-full-stack-on-vercel): `frontend/` is the Next.js service and `backend/` is the FastAPI service. They build, preview, deploy, and roll back atomically in one Vercel project.
-- The FastAPI service has no public Vercel route. `vercel.json` injects its private `BACKEND_INTERNAL_URL` binding into the frontend, so server-rendered Next.js pages call it over Vercel’s internal network.
-- `frontend/app/api/v1/[...path]/route.ts` is the narrow same-origin proxy used by browser interactions. It passes requests to the private backend without a public backend URL, reverse proxy, or CORS dependency.
-- Next.js App Router provides the landing page, public partner pages, partner dashboard/editor, and minimal admin UI.
-- FastAPI owns authentication, validation, authorization, tenant-scoped business writes, public renderer data, publishing, availability, and booking conflict prevention.
-- SQLAlchemy 2 uses Neon PostgreSQL in hosted environments; local development is zero-config SQLite.
-- Alembic owns the hosted database schema. The initial migration is at `alembic/versions/20260918_0001_initial_schema.py`.
-- Vercel Blob stores partner media in production. FastAPI validates the authenticated owner, file type, and 4 MB size limit before writing Blob metadata URLs into PostgreSQL.
+This is one Vercel-native Next.js application at the repository root, with all
+application code in `src/`:
 
-The public API returns one normalized renderer payload, so a customer page does not waterfall through separate calls for its partner, theme, services, reviews, and booking settings.
+```text
+Server Components / Server Actions / Route Handlers
+                     ↓
+              feature services
+                     ↓
+            Drizzle + Neon Postgres
+                     ↓
+                Vercel Blob
+```
+
+- Server Components load the public partner page, dashboard, bookings, and
+  admin views directly through feature queries.
+- Server Actions own authenticated partner mutations. Session cookies are
+  httpOnly; no bearer token is stored in local storage.
+- Route Handlers remain only for public availability/booking, Blob client
+  upload tokens, and streamed private media.
+- Feature code lives in `src/features`; Drizzle schema mappings live in
+  `src/db/schema`; Blob access is centralized in `src/lib/blob`.
+- The current ten product templates remain supported. They share normalized
+  site data and controlled theme settings rather than separate backends.
+
+`docs/vercel-native-audit.md` contains the pre-migration audit, endpoint map,
+target layout, and data-compatibility decisions.
 
 ## Routes
 
 | Route | Purpose |
 | --- | --- |
 | `/` | Cleanie landing page |
-| `/jessica`, `/warm-demo`, `/sparkle` | Seeded Clean, Warm Home, and Pro public pages |
+| `/:partnerSlug` | Published partner booking page |
 | `/login`, `/signup` | Partner account entry |
 | `/dashboard` | Partner overview and template gallery |
-| `/dashboard/editor` | Brand, theme, content, service, gallery, review, and booking editor |
-| `/dashboard/bookings` | Partner booking daily view |
-| `/admin` | Minimal partner and booking operations view (admin accounts only) |
-
-The full FastAPI surface is prefixed with `/api/v1`. Important endpoints include:
-
-- `POST /auth/signup`, `POST /auth/login`
-- `GET/PATCH /partners/me`, `GET /partners/slug-availability`
-- `/partners/me/{theme,sections,services,portfolio,reviews,availability,booking-config,media,publish,bookings}`
-- `GET /public/partners/{slug}` and `/availability`
-- `POST /public/partners/{slug}/bookings`
+| `/dashboard/page` | Page editor |
+| `/dashboard/bookings` | Partner bookings |
+| `/admin` | Admin operations view |
+| `/api/public/:partnerSlug/availability` | Public availability boundary |
+| `/api/public/:partnerSlug/bookings` | Public transactional booking boundary |
 
 ## Local development
 
-The root Makefile is the quickest way to work across both services:
+Install the frontend workspace, configure Neon and Blob values, then start
+Next.js:
 
 ```bash
-make install  # bun install + uv sync
-make dev      # FastAPI on :8000 and Next.js on :3000
+cp .env.example .env.local
+make install
+make dev
 ```
 
-Use `make check` for type checking, linting, and tests; `make build` for the production frontend build; and `make all` to install, verify, and build the whole project.
-
-The equivalent explicit commands are:
+Use a Neon development database. For a new database, apply the Drizzle
+baseline and add the demo data:
 
 ```bash
-(cd frontend && bun install)
-(cd backend && uv sync)
-
-# terminal one — FastAPI starts with SQLite and seeds the demos
-(cd backend && uv run uvicorn main:app --reload --port 8000)
-
-# terminal two — Next proxies browser requests and calls FastAPI directly for SSR
-(cd frontend && BACKEND_INTERNAL_URL=http://127.0.0.1:8000 bun run dev)
+make migrate DATABASE_URL='postgresql://…'
+make seed DATABASE_URL='postgresql://…'
 ```
 
-Open `http://localhost:3000/jessica`. Use the demo partner account in the login form:
+The seeded accounts use `cleanie-demo`; `jessica@example.com` is the demo
+admin. The seed is idempotent and provides the ten template examples used by
+the landing and dashboard flows.
+
+### Existing database migration
+
+The Drizzle definitions retain the original FastAPI/Alembic table and column
+contract. Do not run the initial Drizzle baseline against an existing Cleanie
+database—there is no required DDL change for this runtime migration. See
+[src/db/migrations/README.md](src/db/migrations/README.md) for the baseline
+procedure before generating future schema deltas.
+
+## Environment variables
+
+Set these in the one Vercel project and in `.env.local` for local
+work:
 
 ```text
-jessica@example.com
-cleanie-demo
+DATABASE_URL=postgresql://…
+AUTH_SECRET=<long random secret>
+BLOB_STORE_ID=store_<connected-blob-store>
+BLOB_READ_WRITE_TOKEN=<server-only token for client upload tokens>
+NEXT_PUBLIC_APP_URL=https://cleandly.com
 ```
 
-The Jessica demo user is also the seeded local admin.
+When deployed on Vercel, the Blob SDK prefers its automatically injected OIDC
+credentials for server reads. The read/write token remains necessary for the
+browser upload-token exchange and must never be exposed with a `NEXT_PUBLIC_`
+prefix. Partner media is stored in a private Blob store, then delivered by a
+same-origin route only to its owner or from a published partner page.
 
-### Template end-to-end flow
-
-Local startup seeds 10 published pages—one for each selectable template—so every public composition is backed by the same FastAPI payload used in production. Open `/jessica`, `/warm-demo`, `/sparkle`, `/fresh-start`, `/signature-clean`, `/green-room`, `/move-ready`, `/bright-home`, `/studio-luxe`, or `/neighborly` to inspect them. All demo accounts use `cleanie-demo` as their password.
-
-To exercise the owner flow end to end, log in as one of those demo users, choose a card in **Dashboard → Overview** (or **Page → Theme**), and open that partner’s live URL. The dashboard sends the selection to `PUT /api/v1/partners/me/theme`; FastAPI persists the template and preset theme; the public Next.js page then renders the same saved services, gallery, reviews, availability, and booking flow in the selected composition.
-
-For a production-shaped local process that starts both services and supplies bindings, use `npx vercel dev` after linking the one Vercel project.
-
-## Neon, Blob, and deployment
-
-Use the service-scoped examples: `backend/.env.example` contains database, auth, and Blob configuration; `frontend/.env.example` contains only local development defaults. On startup, `backend/core/config.py` loads `backend/.env` without overriding variables supplied by Vercel or your shell. The backend reads **only** `NEON_DATABASE_URL` for hosted PostgreSQL; local development falls back to SQLite only when it is absent.
-
-Connect Neon and Vercel Blob to the Vercel project, then expose these values to the **backend** service in Preview and Production:
-
-```text
-NEON_DATABASE_URL=postgresql://…           # direct Neon pooled connection string
-AUTH_SECRET=<long, unique random secret>
-BLOB_STORE_ID=<the Blob store URL subdomain>
-BLOB_READ_WRITE_TOKEN=<Vercel Blob read/write token>
-```
-
-The FastAPI upload route passes `BLOB_READ_WRITE_TOKEN` directly to the Blob SDK and verifies that the returned public URL belongs to `BLOB_STORE_ID`. This prevents a token for the wrong store from silently writing partner media elsewhere. Keep both values server-only; the frontend never receives the token. Vercel's Blob SDK requires the read/write token, and Vercel documents Blob URLs as including the store ID. [Blob SDK reference](https://vercel.com/docs/vercel-blob/using-blob-sdk) and [Blob security reference](https://vercel.com/docs/vercel-blob/security).
-
-Set `NEON_DATABASE_URL` directly in the Vercel backend service for Preview and Production. Use Neon’s pooled connection string, and include it locally only when you want to run against the hosted database. [Neon integration guide](https://vercel.com/marketplace/neon/neon).
-
-Vercel injects `BACKEND_INTERNAL_URL` into the frontend through the service binding, so it should not be set to a public production endpoint.
-
-Run migrations against the target database before serving production traffic:
+## Database and quality commands
 
 ```bash
-make migrate NEON_DATABASE_URL='postgresql+psycopg://…'
+make check       # typecheck, lint, and Vitest
+make build       # optimized Next.js build
+make migrate DATABASE_URL='postgresql://…'
+make seed DATABASE_URL='postgresql://…'
 ```
 
-`vercel.json` declares both service roots explicitly, binds `backend` to `frontend`, and routes public traffic only to `frontend`. On Vercel, connect a public Blob store to the project and make backend environment variables available to Preview and Production. Do not run local SQLite auto-creation in PostgreSQL; apply Alembic migrations instead.
+## Vercel deployment
 
-## Checks
+Import this repository as one Vercel project with no **Root Directory**
+override. Connect the project's Neon database and private Blob store, add
+the environment variables above to Preview and Production, and deploy the
+`refactor/vercel-native` branch for a Preview before merging. No `vercel.json`,
+backend service binding, Python runtime, or separate deployment is required.
 
-```bash
-make check
-make build
-```
-
-The API tests cover public publish visibility, reserved slugs, partner tenant isolation, and a repeated booking conflict.
-
-## V1 boundaries
-
-This is intentionally not a generic page builder or workforce-management system. Partner customization is constrained to identity, one template, controlled theme tokens, proof, services, reviews, visibility, and simple availability. Payments default to `none`; the database supports future payment modes without presenting fake checkout behavior.
+The public page cache is revalidated centrally after partner profile, theme,
+content, service, portfolio, review, booking-setting, and publishing changes.

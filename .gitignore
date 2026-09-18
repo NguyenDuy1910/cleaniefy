@@ -1,11 +1,34 @@
-node_modules
-.next
+# Dependencies
+/node_modules/
+/.pnp/
+.pnp.*
+
+# Next.js and deployment output
+/.next/
+/out/
+/.vercel/
+/.turbo/
+
+# Test and tooling output
+/coverage/
+/test-results/
+/playwright-report/
 *.tsbuildinfo
-.env
-.env.local
-__pycache__
+
+# Local configuration and secrets
+.env*
+!.env.example
+
+# Logs and operating-system files
+*.log
+*.log.*
+.DS_Store
+
+# Legacy Python local artifacts (kept ignored during the migration cleanup)
+__pycache__/
 *.py[cod]
-.pytest_cache
-.venv
-coverage
+.pytest_cache/
+.venv/
 *.db
+*.sqlite
+*.sqlite3
