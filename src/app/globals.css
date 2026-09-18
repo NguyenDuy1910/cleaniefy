@@ -20,6 +20,9 @@ body {
   background: var(--paper);
   font-family: var(--font-manrope), Arial, sans-serif;
 }
+img {
+  max-width: 100%;
+}
 button,
 input,
 textarea,
@@ -42,7 +45,7 @@ select:focus-visible {
   outline-offset: 2px;
 }
 .app-shell {
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Shimmer skeletons keep route and streamed-server loading states visually
@@ -1234,7 +1237,7 @@ button[aria-busy="true"] { cursor: wait; }
   background: #fff;
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 .dashboard-sidebar {
   background: #f5f7f2;
@@ -1593,7 +1596,7 @@ button[aria-busy="true"] { cursor: wait; }
   align-items: flex-start;
   display: grid;
   gap: 32px;
-  grid-template-columns: minmax(520px, 1fr) minmax(380px, 480px);
+  grid-template-columns: minmax(0, 1.28fr) minmax(360px, 0.92fr);
   padding-top: 24px;
 }
 .editor-panel {
@@ -2012,6 +2015,7 @@ button[aria-busy="true"] { cursor: wait; }
   position: sticky;
   top: 148px;
 }
+.editor-preview-toggle { display: none; }
 .preview-heading {
   align-items: center;
   border-bottom: 1px solid #e2e7e1;
@@ -3086,4 +3090,170 @@ button[aria-busy="true"] { cursor: wait; }
     max-width: 860px;
     padding: 30px;
   }
+}
+
+/* Responsive composition: shared shell first, then page-specific content. */
+.dashboard-heading > div,
+.current-page-card > div,
+.section-title > div,
+.today-list article > div,
+.booking-list-main,
+.site-service > div,
+.booking-service > span {
+  min-width: 0;
+}
+.current-page-card a,
+.today-list span,
+.booking-list-main span,
+.site-service h3,
+.site-service p,
+.booking-service b,
+.booking-summary span,
+.admin-row b,
+.admin-row span,
+.admin-row a {
+  overflow-wrap: anywhere;
+}
+.site-service,
+.booking-service,
+.booking-summary {
+  gap: 12px;
+}
+.date-list button,
+.time-list button {
+  min-height: 44px;
+}
+.booking-summary {
+  align-items: flex-start;
+}
+
+@media (max-width: 1160px) {
+  .dashboard-layout,
+  .dashboard-loading-page {
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+  .dashboard-sidebar { padding-left: 12px; padding-right: 12px; }
+  .editor-workspace {
+    gap: 24px;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 0.82fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard-layout { display: block; }
+  .dashboard-sidebar {
+    align-items: center;
+    border-bottom: 1px solid #e0e5de;
+    border-right: 0;
+    flex-direction: row;
+    gap: 12px;
+    min-height: 60px;
+    padding: 8px 16px;
+  }
+  .dashboard-sidebar .wordmark { flex: none; margin: 0 4px 0 0; }
+  .dashboard-sidebar nav {
+    display: flex;
+    flex: 1;
+    gap: 3px;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .dashboard-sidebar nav::-webkit-scrollbar { display: none; }
+  .dashboard-sidebar nav a {
+    align-items: center;
+    display: inline-flex;
+    flex: none;
+    min-height: 44px;
+    padding: 0 11px;
+    white-space: nowrap;
+  }
+  .sidebar-view { display: none; }
+  .dashboard-main { padding: 28px 30px 60px; }
+}
+
+@media (max-width: 700px) {
+  .dashboard-sidebar { gap: 8px; padding-left: 16px; padding-right: 16px; }
+  .dashboard-sidebar .wordmark { margin-right: 4px; }
+  .dashboard-sidebar nav a { font-size: 12px; padding: 0 10px; }
+  .dashboard-sidebar nav a:nth-child(4) { display: inline-flex; }
+  .dashboard-main { padding: 24px 16px 52px; }
+  .dashboard-heading,
+  .editor-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .dashboard-heading .button { width: 100%; }
+  .current-page-card a { font-size: 16px; }
+  .page-actions { width: 100%; }
+  .page-actions .button { flex: 1; }
+  .editor-header {
+    min-height: 0;
+    padding: 14px 0;
+    position: static;
+  }
+  .editor-top-actions {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .editor-top-actions .publish-status { margin-right: auto; }
+  .editor-preview-toggle { display: inline-flex; }
+  .editor-tabs { position: static; }
+  .editor-workspace { display: block; padding-top: 20px; }
+  .editor-panel { padding: 0 0 38px; }
+  .editor-preview { display: none; margin-top: 0; position: static; }
+  .editor-preview.mobile-preview-open { display: block; }
+  .preview-stage {
+    height: min(620px, 78dvh);
+    min-height: 420px;
+  }
+  .preview-viewport.mobile { width: min(390px, 100%); }
+  .publish-checklist button { min-height: 38px; }
+  .manage-card,
+  .template-card-actions,
+  .booking-summary { align-items: flex-start; }
+  .manage-card,
+  .template-card-actions { flex-direction: column; }
+  .card-actions { min-height: 38px; }
+  .compact-fields { flex-wrap: wrap; }
+  .compact-fields input { flex: 1 1 110px; max-width: none; min-width: 0; }
+  .portfolio-row {
+    grid-template-columns: 56px 56px minmax(0, 1fr) 25px;
+  }
+  .portfolio-row img { width: 56px; }
+  .admin-page header { align-items: flex-start; gap: 14px; }
+  .admin-page header div { align-items: flex-end; flex-direction: column; gap: 7px; }
+  .admin-table { overflow-x: auto; }
+  .admin-row { min-width: 520px; }
+  .admin-row.booking {
+    grid-template-columns: 1.2fr 1.2fr 1.5fr 0.6fr;
+    min-width: 640px;
+  }
+  .admin-row.booking span:nth-child(3),
+  .admin-row.booking span:nth-child(4),
+  .admin-head.booking span:nth-child(n + 3) { display: block; }
+  .site-proof figure { grid-template-columns: 1fr; }
+  .site-proof figure > div { height: 210px; }
+  .template-warm-home .service-grid,
+  .layout-warm .service-grid { grid-template-columns: 1fr; }
+  .template-warm-home .site-service,
+  .layout-warm .site-service { min-height: 0; }
+}
+
+@media (max-width: 430px) {
+  .marketing-nav { padding-left: 16px; padding-right: 16px; }
+  .marketing-nav .nav-links > :not(.button) { display: none; }
+  .hero { padding-left: 20px; padding-right: 20px; }
+  .hero-actions { align-items: stretch; flex-direction: column; }
+  .hero-actions .button { width: 100%; }
+  .section { padding-left: 16px; padding-right: 16px; }
+  .editor-top-actions .button { flex: 1 1 auto; }
+  .editor-top-actions .publish-status { flex-basis: 100%; }
+  .image-upload-row,
+  .gallery-drop-row { grid-template-columns: 1fr; }
+  .today-list article { grid-template-columns: 64px minmax(0, 1fr); }
+  .booking-flow { padding: 18px; }
+  .booking-heading { gap: 10px; }
+  .pro-metrics { grid-template-columns: 1fr; gap: 14px; }
 }

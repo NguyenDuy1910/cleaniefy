@@ -47,8 +47,8 @@ export interface Partner {
   publishedAt?: string | null;
 }
 
-export interface PublicSite {
-  partner: Partner;
+export interface PartnerSiteState {
+  partner: Pick<Partner, "businessName" | "slug" | "tagline" | "serviceArea" | "profileImageUrl" | "heroImageUrl" | "about">;
   site: { template: TemplateKey; theme: ThemeConfig; sections: SectionConfig };
   services: Service[];
   portfolio: PortfolioItem[];
@@ -61,6 +61,10 @@ export interface PublicSite {
     completedJobs: number;
     views: number;
   };
+}
+
+export interface PublicSite extends PartnerSiteState {
+  partner: Partner;
 }
 
 export interface PublishRequirement {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { BookingConfig, BookingPayload } from "./types";
 
 export const AvailabilitySchema = z
   .object({
@@ -44,3 +45,18 @@ export const PublicAvailabilityQuerySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a YYYY-MM-DD date."),
   serviceId: z.string().uuid().optional(),
 });
+
+export function requiredBookingFieldError(config: BookingConfig, input: Pick<BookingPayload, "customerPhone" | "customerEmail" | "customerAddress" | "notes">): string | null {
+  const requiredValues = {
+    phone: input.customerPhone,
+    email: input.customerEmail,
+    address: input.customerAddress,
+    notes: input.notes,
+  };
+  for (const [field, value] of Object.entries(requiredValues)) {
+    if (config.requiredFields[field as keyof typeof requiredValues] && !value?.trim()) {
+      return `${field[0]?.toUpperCase()}${field.slice(1)} is required for this booking.`;
+    }
+  }
+  return null;
+}

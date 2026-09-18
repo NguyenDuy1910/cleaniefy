@@ -2,7 +2,8 @@ import { getTemplateDefinition } from "@/templates/catalog";
 import { CleanTemplate } from "@/templates/clean";
 import { ProTemplate } from "@/templates/pro";
 import { WarmHomeTemplate } from "@/templates/warm-home";
-import type { PublicSite, TemplateKey } from "@/features/partner/types";
+import type { PartnerSiteState, TemplateKey } from "@/features/partner/types";
+import type { SiteRuntimeMode } from "@/features/booking/site-actions";
 
 const templateFamilies: Record<TemplateKey, typeof CleanTemplate> = {
   clean: CleanTemplate,
@@ -21,18 +22,24 @@ export function SiteRenderer({
   site,
   compact = false,
   interactive = true,
+  mode = "published",
+  resetKey = 0,
 }: {
-  site: PublicSite;
+  site: PartnerSiteState;
   compact?: boolean;
   interactive?: boolean;
+  mode?: SiteRuntimeMode;
+  resetKey?: number;
 }) {
   const Template = templateFamilies[site.site.template];
   return (
     <Template
+      key={resetKey}
       site={site}
       definition={getTemplateDefinition(site.site.template)}
       compact={compact}
       interactive={interactive}
+      mode={mode}
     />
   );
 }

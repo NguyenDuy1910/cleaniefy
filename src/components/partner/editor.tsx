@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -11,8 +11,6 @@ import {
   Monitor,
   Plus,
   Save,
-  Smartphone,
-  Tablet,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -32,8 +30,10 @@ import type {
   TemplateKey,
   ThemeConfig,
 } from "@/lib/types";
-import { SiteRenderer } from "@/templates/renderer";
 import { DashboardFrame } from "./dashboard-home";
+import { PreviewFrame } from "@/components/preview/preview-frame";
+import { toPartnerSiteState } from "@/components/preview/preview-messages";
+import type { PartnerSiteState } from "@/features/partner/types";
 
 type Tab =
   | "brand"
@@ -54,27 +54,15 @@ const tabs: [Tab, string][] = [
 ];
 const colors = ["#26573d", "#8f5733", "#243873", "#73385c", "#1f1f1f"];
 
-const editorPreview = (overview: Overview): PublicSite => ({
-  ...overview,
-  metrics: {
-    rating: overview.metrics.rating,
-    reviewCount: overview.reviews.length,
-    completedJobs: overview.metrics.bookingCount,
-    views: overview.metrics.views,
-  },
-});
 type PreviewUpdate = {
-  partner?: Partial<PublicSite["partner"]>;
-  site?: Partial<PublicSite["site"]>;
-  availability?: PublicSite["availability"];
-  booking?: PublicSite["booking"];
+  partner?: Partial<PartnerSiteState["partner"]>;
+  site?: Partial<PartnerSiteState["site"]>;
+  availability?: PartnerSiteState["availability"];
+  booking?: PartnerSiteState["booking"];
+  services?: PartnerSiteState["services"];
+  portfolio?: PartnerSiteState["portfolio"];
+  reviews?: PartnerSiteState["reviews"];
 };
-type PreviewDevice = "desktop" | "tablet" | "mobile";
-const previewDevices: { key: PreviewDevice; label: string; Icon: typeof Monitor }[] = [
-  { key: "desktop", label: "Desktop", Icon: Monitor },
-  { key: "tablet", label: "Tablet", Icon: Tablet },
-  { key: "mobile", label: "Mobile", Icon: Smartphone },
-];
 const tabForRequirement = {
   businessName: "brand",
   slug: "brand",
@@ -89,17 +77,19 @@ async function requireAction<T>(result: Promise<ActionResult<T>>) {
 export function Editor({ initialOverview }: { initialOverview: Overview }) {
   const router = useRouter();
   const [overview, setOverview] = useState<Overview>(initialOverview);
-  const [preview, setPreview] = useState<PublicSite>(editorPreview(initialOverview));
-  const [previewVersion, setPreviewVersion] = useState(0);
-  const [previewDevice, setPreviewDevice] = useState<PreviewDevice>("desktop");
+  const [preview, setPreview] = useState<PartnerSiteState>(() => toPartnerSiteState(initialOverview));
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const temporaryImageUrls = useRef(new Set<string>());
   const [tab, setTab] = useState<Tab>("brand");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     setOverview(initialOverview);
-    setPreview(editorPreview(initialOverview));
   }, [initialOverview]);
+  useEffect(() => () => {
+    temporaryImageUrls.current.forEach((url) => URL.revokeObjectURL(url));
+  }, []);
   useEffect(() => {
     const requested = new URLSearchParams(location.search).get(
       "tab",
@@ -138,9 +128,18 @@ export function Editor({ initialOverview }: { initialOverview: Overview }) {
             : current.site,
           availability: update.availability ?? current.availability,
           booking: update.booking ?? current.booking,
+          services: update.services ?? current.services,
+          portfolio: update.portfolio ?? current.portfolio,
+          reviews: update.reviews ?? current.reviews,
+          metrics: update.reviews ? {
+            ...current.metrics,
+            reviewCount: update.reviews.length,
+            rating: update.reviews.length
+              ? Math.round(update.reviews.reduce((total, review) => total + review.rating, 0) / update.reviews.length * 10) / 10
+              : 5,
+          } : current.metrics,
         },
     );
-    setPreviewVersion((version) => version + 1);
   };
   const readiness = overview.publishReadiness;
   const firstIncomplete = readiness.requirements.find((item) => !item.complete);
@@ -168,14 +167,23 @@ export function Editor({ initialOverview }: { initialOverview: Overview }) {
           <span className={`publish-status ${overview.partner.status}`}>
             <i /> {overview.partner.status === "published" ? "Published" : "Draft"}
           </span>
-          <a
+          {overview.partner.status === "published" && <a
             className="button secondary small"
             href={`/${overview.partner.slug}`}
             target="_blank"
             rel="noreferrer"
           >
-            View page
-          </a>
+            View live page
+          </a>}
+          <button
+            aria-controls="live-preview"
+            aria-expanded={previewOpen}
+            className="button secondary small editor-preview-toggle"
+            onClick={() => setPreviewOpen((open) => !open)}
+            type="button"
+          >
+            <Monitor size={15} /> {previewOpen ? "Hide preview" : "Preview"}
+          </button>
           {overview.partner.status !== "published" && (
             <button className="button small" onClick={publish} disabled={busy}>
               {readiness.ready ? "Publish page" : "Finish setup"}
@@ -266,11 +274,13 @@ export function Editor({ initialOverview }: { initialOverview: Overview }) {
                 run("Brand saved.", () => requireAction(updatePartnerProfileAction(data)))
               }
               onUpload={(file, purpose) => {
+                const temporaryUrl = URL.createObjectURL(file);
+                temporaryImageUrls.current.add(temporaryUrl);
                 updatePreview({
                   partner:
                     purpose === "profile"
-                      ? { profileImageUrl: URL.createObjectURL(file) }
-                      : { heroImageUrl: URL.createObjectURL(file) },
+                      ? { profileImageUrl: temporaryUrl }
+                      : { heroImageUrl: temporaryUrl },
                 });
                 run("Image uploaded.", async () => {
                   const result = await uploadPartnerMedia(file, purpose);
@@ -279,6 +289,9 @@ export function Editor({ initialOverview }: { initialOverview: Overview }) {
                       ? { profileImageUrl: result.url }
                       : { heroImageUrl: result.url },
                   ));
+                  updatePreview({ partner: purpose === "profile" ? { profileImageUrl: result.url } : { heroImageUrl: result.url } });
+                  URL.revokeObjectURL(temporaryUrl);
+                  temporaryImageUrls.current.delete(temporaryUrl);
                 });
               }}
             />
@@ -302,13 +315,13 @@ export function Editor({ initialOverview }: { initialOverview: Overview }) {
             />
           </div>
           <div hidden={tab !== "services"}>
-            <ServicesEditor overview={overview} busy={busy} run={run} />
+            <ServicesEditor overview={overview} busy={busy} run={run} previewServices={preview.services} onPreview={(services) => updatePreview({ services })} />
           </div>
           <div hidden={tab !== "gallery"}>
-            <GalleryEditor overview={overview} busy={busy} run={run} />
+            <GalleryEditor overview={overview} busy={busy} run={run} previewPortfolio={preview.portfolio} onPreview={(portfolio) => updatePreview({ portfolio })} />
           </div>
           <div hidden={tab !== "reviews"}>
-            <ReviewsEditor overview={overview} busy={busy} run={run} />
+            <ReviewsEditor overview={overview} busy={busy} run={run} previewReviews={preview.reviews} onPreview={(reviews) => updatePreview({ reviews })} />
           </div>
           <div hidden={tab !== "booking"}>
             <BookingEditor
@@ -319,31 +332,7 @@ export function Editor({ initialOverview }: { initialOverview: Overview }) {
             />
           </div>
         </section>
-        <aside className="editor-preview" aria-label="Live page preview">
-          <div className="preview-heading">
-            <span>LIVE PREVIEW</span>
-            <div className="preview-devices" aria-label="Preview device">
-              {previewDevices.map(({ key, label, Icon }) => (
-                <button
-                  aria-label={`${label} preview`}
-                  aria-pressed={previewDevice === key}
-                  className={previewDevice === key ? "active" : ""}
-                  key={key}
-                  onClick={() => setPreviewDevice(key)}
-                  title={label}
-                  type="button"
-                >
-                  <Icon size={15} />
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className={`preview-stage ${previewDevice}`}>
-            <div className={`preview-viewport ${previewDevice}`} key={`${previewDevice}-${previewVersion}`}>
-              <SiteRenderer site={preview} interactive={false} />
-            </div>
-          </div>
-        </aside>
+        <PreviewFrame site={preview} open={previewOpen} />
       </div>
       </div>
     </DashboardFrame>
@@ -641,12 +630,17 @@ function ServicesEditor({
   overview,
   busy,
   run,
+  previewServices,
+  onPreview,
 }: {
   overview: Overview;
   busy: boolean;
   run: (message: string, action: () => Promise<unknown>) => void;
+  previewServices: Service[];
+  onPreview: (services: Service[]) => void;
 }) {
   const [adding, setAdding] = useState(false);
+  const draftServiceId = useRef("");
   const hasActiveService = overview.services.some((service) => service.active);
   const [draft, setDraft] = useState({
     name: "",
@@ -654,16 +648,34 @@ function ServicesEditor({
     priceCents: "",
     durationMinutes: "120",
   });
+  const updateDraft = (next: typeof draft) => {
+    setDraft(next);
+    const remaining = previewServices.filter((item) => item.id !== draftServiceId.current);
+    onPreview(next.name.trim() ? [...remaining, {
+      id: draftServiceId.current,
+      name: next.name,
+      description: next.description,
+      priceCents: Number(next.priceCents) * 100 || 0,
+      durationMinutes: Number(next.durationMinutes) || 120,
+      active: true,
+      sortOrder: remaining.length,
+    }] : remaining);
+  };
+  const startAdding = () => {
+    draftServiceId.current = crypto.randomUUID();
+    setAdding(true);
+  };
   const add = (event: React.FormEvent) => {
     event.preventDefault();
     run("Service added.", async () => {
-      await requireAction(createServiceAction({
+      const service = await requireAction(createServiceAction({
         name: draft.name,
         description: draft.description,
         priceCents: Number(draft.priceCents) * 100,
         durationMinutes: Number(draft.durationMinutes),
         active: true,
       }));
+      onPreview([...previewServices.filter((item) => item.id !== draftServiceId.current), service]);
       setAdding(false);
       setDraft({
         name: "",
@@ -685,14 +697,14 @@ function ServicesEditor({
             </p>
           </div>
           {!overview.services.length && !adding && (
-            <button className="button small" onClick={() => setAdding(true)} type="button">
+            <button className="button small" onClick={startAdding} type="button">
               <Plus size={15} /> Add service
             </button>
           )}
         </section>
       )}
       {overview.services.map((service) => (
-        <ServiceRow service={service} key={service.id} busy={busy} run={run} />
+        <ServiceRow service={service} key={service.id} busy={busy} run={run} previewServices={previewServices} onPreview={onPreview} />
       ))}
       {adding ? (
         <form className="inline-form" onSubmit={add}>
@@ -701,14 +713,14 @@ function ServicesEditor({
             value={draft.name}
             required
             onChange={(event) =>
-              setDraft({ ...draft, name: event.target.value })
+              updateDraft({ ...draft, name: event.target.value })
             }
           />
           <input
             placeholder="Description"
             value={draft.description}
             onChange={(event) =>
-              setDraft({ ...draft, description: event.target.value })
+              updateDraft({ ...draft, description: event.target.value })
             }
           />
           <input
@@ -718,7 +730,7 @@ function ServicesEditor({
             value={draft.priceCents}
             required
             onChange={(event) =>
-              setDraft({ ...draft, priceCents: event.target.value })
+              updateDraft({ ...draft, priceCents: event.target.value })
             }
           />
           <input
@@ -729,15 +741,19 @@ function ServicesEditor({
             value={draft.durationMinutes}
             required
             onChange={(event) =>
-              setDraft({ ...draft, durationMinutes: event.target.value })
+              updateDraft({ ...draft, durationMinutes: event.target.value })
             }
           />
           <button className="button small" disabled={busy}>
             Add service
           </button>
+          <button className="button secondary small" type="button" onClick={() => {
+            onPreview(previewServices.filter((item) => item.id !== draftServiceId.current));
+            setAdding(false);
+          }}>Cancel</button>
         </form>
       ) : (
-        <button className="text-action" onClick={() => setAdding(true)}>
+        <button className="text-action" onClick={startAdding}>
           <Plus size={16} /> Add service
         </button>
       )}
@@ -748,10 +764,14 @@ function ServiceRow({
   service,
   busy,
   run,
+  previewServices,
+  onPreview,
 }: {
   service: Service;
   busy: boolean;
   run: (message: string, action: () => Promise<unknown>) => void;
+  previewServices: Service[];
+  onPreview: (services: Service[]) => void;
 }) {
   const [edit, setEdit] = useState(false);
   const [draft, setDraft] = useState({
@@ -760,6 +780,16 @@ function ServiceRow({
     price: String(service.priceCents / 100),
     duration: String(service.durationMinutes),
   });
+  const updateDraft = (next: typeof draft) => {
+    setDraft(next);
+    onPreview(previewServices.map((item) => item.id === service.id ? {
+      ...item,
+      name: next.name,
+      description: next.description,
+      priceCents: Number(next.price) * 100 || 0,
+      durationMinutes: Number(next.duration) || 15,
+    } : item));
+  };
   return (
     <article className="manage-card">
       {edit ? (
@@ -767,13 +797,13 @@ function ServiceRow({
           <input
             value={draft.name}
             onChange={(event) =>
-              setDraft({ ...draft, name: event.target.value })
+              updateDraft({ ...draft, name: event.target.value })
             }
           />
           <input
             value={draft.description}
             onChange={(event) =>
-              setDraft({ ...draft, description: event.target.value })
+              updateDraft({ ...draft, description: event.target.value })
             }
           />
           <div className="compact-fields">
@@ -781,14 +811,14 @@ function ServiceRow({
               type="number"
               value={draft.price}
               onChange={(event) =>
-                setDraft({ ...draft, price: event.target.value })
+                updateDraft({ ...draft, price: event.target.value })
               }
             />
             <input
               type="number"
               value={draft.duration}
               onChange={(event) =>
-                setDraft({ ...draft, duration: event.target.value })
+                updateDraft({ ...draft, duration: event.target.value })
               }
             />
           </div>
@@ -797,18 +827,24 @@ function ServiceRow({
             disabled={busy}
             onClick={() =>
               run("Service saved.", async () => {
-                await requireAction(updateServiceAction(service.id, {
+                const updated = await requireAction(updateServiceAction(service.id, {
                   name: draft.name,
                   description: draft.description,
                   priceCents: Number(draft.price) * 100,
                   durationMinutes: Number(draft.duration),
                 }));
+                onPreview(previewServices.map((item) => item.id === service.id ? updated : item));
                 setEdit(false);
               })
             }
           >
             Save
           </button>
+          <button className="button secondary small" type="button" onClick={() => {
+            onPreview(previewServices.map((item) => item.id === service.id ? service : item));
+            setDraft({ name: service.name, description: service.description, price: String(service.priceCents / 100), duration: String(service.durationMinutes) });
+            setEdit(false);
+          }}>Cancel</button>
         </>
       ) : (
         <>
@@ -823,19 +859,29 @@ function ServiceRow({
           <div className="card-actions">
             <button onClick={() => setEdit(true)}>Edit</button>
             <button
-              onClick={() =>
-                run(service.active ? "Service hidden." : "Service shown.", () =>
-                  requireAction(updateServiceAction(service.id, { active: !service.active })),
-                )
-              }
+              onClick={() => {
+                const previous = previewServices;
+                onPreview(previous.map((item) => item.id === service.id ? { ...item, active: !service.active } : item));
+                run(service.active ? "Service hidden." : "Service shown.", async () => {
+                  try {
+                    const updated = await requireAction(updateServiceAction(service.id, { active: !service.active }));
+                    onPreview(previous.map((item) => item.id === service.id ? updated : item));
+                  } catch (error) { onPreview(previous); throw error; }
+                });
+              }}
             >
               {service.active ? "Hide" : "Show"}
             </button>
             <button
               aria-label={`Delete ${service.name}`}
-              onClick={() =>
-                run("Service deleted.", () => requireAction(deleteServiceAction(service.id)))
-              }
+              onClick={() => {
+                const previous = previewServices;
+                onPreview(previous.filter((item) => item.id !== service.id));
+                run("Service deleted.", async () => {
+                  try { await requireAction(deleteServiceAction(service.id)); }
+                  catch (error) { onPreview(previous); throw error; }
+                });
+              }}
             >
               <Trash2 size={15} />
             </button>
@@ -850,19 +896,52 @@ function GalleryEditor({
   overview,
   busy,
   run,
+  previewPortfolio,
+  onPreview,
 }: {
   overview: Overview;
   busy: boolean;
   run: (message: string, action: () => Promise<unknown>) => void;
+  previewPortfolio: PartnerSiteState["portfolio"];
+  onPreview: (portfolio: PartnerSiteState["portfolio"]) => void;
 }) {
   const [before, setBefore] = useState("");
   const [after, setAfter] = useState("");
   const [caption, setCaption] = useState("");
-  const select = (file: File, purpose: "before" | "after") =>
+  const draftId = useRef(crypto.randomUUID());
+  const draftRef = useRef({ before: "", after: "", caption: "" });
+  const portfolioRef = useRef(previewPortfolio);
+  const temporaryUrls = useRef(new Set<string>());
+  portfolioRef.current = previewPortfolio;
+  useEffect(() => () => { temporaryUrls.current.forEach((url) => URL.revokeObjectURL(url)); }, []);
+  const updateDraft = (update: Partial<typeof draftRef.current>) => {
+    const next = { ...draftRef.current, ...update };
+    draftRef.current = next;
+    setBefore(next.before);
+    setAfter(next.after);
+    setCaption(next.caption);
+    const remaining = portfolioRef.current.filter((item) => item.id !== draftId.current);
+    const portfolio = next.before && next.after ? [...remaining, {
+      id: draftId.current,
+      beforeImageUrl: next.before,
+      afterImageUrl: next.after,
+      caption: next.caption,
+      sortOrder: remaining.length,
+    }] : remaining;
+    portfolioRef.current = portfolio;
+    onPreview(portfolio);
+  };
+  const select = (file: File, purpose: "before" | "after") => {
+    const temporaryUrl = URL.createObjectURL(file);
+    temporaryUrls.current.add(temporaryUrl);
+    updateDraft({ [purpose]: temporaryUrl });
     run("Image uploaded.", async () => {
       const image = await uploadPartnerMedia(file, purpose);
-      purpose === "before" ? setBefore(image.url) : setAfter(image.url);
+      updateDraft({ [purpose]: image.url });
+      URL.revokeObjectURL(temporaryUrl);
+      temporaryUrls.current.delete(temporaryUrl);
     });
+  };
   return (
     <div className="manage-list">
       <p className="editor-helper">
@@ -908,21 +987,22 @@ function GalleryEditor({
       <input
         placeholder="Caption (optional)"
         value={caption}
-        onChange={(event) => setCaption(event.target.value)}
+        onChange={(event) => updateDraft({ caption: event.target.value })}
       />
       <button
         className="button"
         disabled={busy || !before || !after}
         onClick={() =>
           run("Before & after added.", async () => {
-            await requireAction(createPortfolioItemAction({
+            const item = await requireAction(createPortfolioItemAction({
               beforeImageUrl: before,
               afterImageUrl: after,
               caption,
             }));
-            setBefore("");
-            setAfter("");
-            setCaption("");
+            onPreview([...portfolioRef.current.filter((entry) => entry.id !== draftId.current), item]);
+            draftId.current = crypto.randomUUID();
+            draftRef.current = { before: "", after: "", caption: "" };
+            setBefore(""); setAfter(""); setCaption("");
           })
         }
       >
@@ -935,9 +1015,14 @@ function GalleryEditor({
           <span>{item.caption}</span>
           <button
             aria-label="Delete portfolio item"
-            onClick={() =>
-              run("Portfolio item deleted.", () => requireAction(deletePortfolioItemAction(item.id)))
-            }
+            onClick={() => {
+              const previous = portfolioRef.current;
+              onPreview(previous.filter((entry) => entry.id !== item.id));
+              run("Portfolio item deleted.", async () => {
+                try { await requireAction(deletePortfolioItemAction(item.id)); }
+                catch (error) { onPreview(previous); throw error; }
+              });
+            }}
           >
             <Trash2 size={15} />
           </button>
@@ -951,12 +1036,30 @@ function ReviewsEditor({
   overview,
   busy,
   run,
+  previewReviews,
+  onPreview,
 }: {
   overview: Overview;
   busy: boolean;
   run: (message: string, action: () => Promise<unknown>) => void;
+  previewReviews: PartnerSiteState["reviews"];
+  onPreview: (reviews: PartnerSiteState["reviews"]) => void;
 }) {
   const [adding, setAdding] = useState(false);
+  const draftId = useRef(crypto.randomUUID());
+  const [draft, setDraft] = useState({ author: "", rating: 5, text: "" });
+  const updateDraft = (next: typeof draft) => {
+    setDraft(next);
+    const remaining = previewReviews.filter((review) => review.id !== draftId.current);
+    onPreview(next.author.trim() && next.text.trim() ? [...remaining, {
+      id: draftId.current,
+      author: next.author,
+      rating: next.rating,
+      text: next.text,
+      source: "manual",
+      featured: remaining.length === 0,
+    }] : remaining);
+  };
   return (
     <div className="manage-list">
       {overview.reviews.map((review) => (
@@ -969,9 +1072,14 @@ function ReviewsEditor({
           </div>
           <button
             aria-label={`Delete review by ${review.author}`}
-            onClick={() =>
-              run("Review deleted.", () => requireAction(deleteReviewAction(review.id)))
-            }
+            onClick={() => {
+              const previous = previewReviews;
+              onPreview(previous.filter((item) => item.id !== review.id));
+              run("Review deleted.", async () => {
+                try { await requireAction(deleteReviewAction(review.id)); }
+                catch (error) { onPreview(previous); throw error; }
+              });
+            }}
           >
             <Trash2 size={15} />
           </button>
@@ -982,21 +1090,23 @@ function ReviewsEditor({
           className="inline-form"
           onSubmit={(event) => {
             event.preventDefault();
-            const form = new FormData(event.currentTarget);
             run("Review added.", async () => {
-              await requireAction(createReviewAction({
-                author: String(form.get("author")),
-                rating: Number(form.get("rating")),
-                text: String(form.get("text")),
+              const review = await requireAction(createReviewAction({
+                author: draft.author,
+                rating: draft.rating,
+                text: draft.text,
                 source: "manual",
                 featured: overview.reviews.length === 0,
               }));
+              onPreview([...previewReviews.filter((item) => item.id !== draftId.current), review]);
+              draftId.current = crypto.randomUUID();
+              setDraft({ author: "", rating: 5, text: "" });
               setAdding(false);
             });
           }}
         >
-          <input name="author" placeholder="Customer name" required />
-          <select name="rating" defaultValue="5">
+          <input name="author" placeholder="Customer name" required value={draft.author} onChange={(event) => updateDraft({ ...draft, author: event.target.value })} />
+          <select name="rating" value={draft.rating} onChange={(event) => updateDraft({ ...draft, rating: Number(event.target.value) })}>
             <option value="5">5 stars</option>
             <option value="4">4 stars</option>
             <option value="3">3 stars</option>
@@ -1006,10 +1116,16 @@ function ReviewsEditor({
             placeholder="What did they say?"
             required
             rows={3}
+            value={draft.text}
+            onChange={(event) => updateDraft({ ...draft, text: event.target.value })}
           />
           <button className="button small" disabled={busy}>
             Add review
           </button>
+          <button className="button secondary small" type="button" onClick={() => {
+            onPreview(previewReviews.filter((review) => review.id !== draftId.current));
+            setAdding(false);
+          }}>Cancel</button>
         </form>
       ) : (
         <button className="text-action" onClick={() => setAdding(true)}>

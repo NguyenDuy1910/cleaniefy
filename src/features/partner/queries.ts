@@ -11,7 +11,8 @@ import {
   services,
 } from "@/db/schema";
 import { PartnerNotFoundError } from "@/lib/errors";
-import type { Overview, PublicSite } from "@/lib/types";
+import type { Overview, PartnerSiteState, PublicSite } from "@/lib/types";
+import { toPartnerSiteState } from "@/components/preview/preview-messages";
 import {
   serializeAvailability,
   serializeBooking,
@@ -77,6 +78,20 @@ export async function getPublicPartnerSite(slug: string): Promise<PublicSite> {
       views: 0,
     },
   };
+}
+
+export async function getPartnerPreviewSite(partnerId: string): Promise<PartnerSiteState> {
+  const [partner] = await db().select().from(partners).where(eq(partners.id, partnerId));
+  if (!partner) throw new PartnerNotFoundError();
+  const relations = await getSiteRelations(partnerId, true);
+  const rating = relations.reviews.length
+    ? relations.reviews.reduce((sum, review) => sum + review.rating, 0) / relations.reviews.length
+    : 5;
+  return toPartnerSiteState({
+    partner: serializePartner(partner),
+    ...relations,
+    metrics: { rating: Math.round(rating * 10) / 10, reviewCount: relations.reviews.length, completedJobs: 0, views: 0 },
+  });
 }
 
 export async function getPartnerOverview(partnerId: string): Promise<Overview> {

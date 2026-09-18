@@ -1,9 +1,13 @@
 import type { CSSProperties } from "react";
 import { BadgeCheck, MapPin, ShieldCheck, Star } from "lucide-react";
 import type { TemplateDefinition } from "@/templates/catalog";
-import type { PublicSite } from "@/features/partner/types";
+import type { PartnerSiteState } from "@/features/partner/types";
 import type { Service } from "@/features/services/types";
 import { BookingFlow } from "@/components/booking/booking-flow";
+import type { SiteRuntimeMode } from "@/features/booking/site-actions";
+import { SiteImage } from "@/components/public-site/site-image";
+import { ProofGallery } from "@/components/public-site/proof-gallery";
+import { ReviewSection } from "@/components/public-site/review-section";
 
 const money = (cents: number) =>
   new Intl.NumberFormat("en-US", {
@@ -15,14 +19,12 @@ const duration = (minutes: number) =>
   minutes >= 60
     ? `${Math.floor(minutes / 60)}–${Math.ceil(minutes / 60) + 1} hr`
     : `${minutes} min`;
-const firstReview = (site: PublicSite) =>
-  site.reviews.find((review) => review.featured) ?? site.reviews[0];
 
 function Rating({
   site,
   short = false,
 }: {
-  site: PublicSite;
+  site: PartnerSiteState;
   short?: boolean;
 }) {
   return (
@@ -88,58 +90,7 @@ function Services({
   );
 }
 
-function Proof({ site }: { site: PublicSite }) {
-  const portfolio = site.portfolio[0];
-  if (!portfolio) return null;
-  return (
-    <section className="site-proof" aria-labelledby="proof-title">
-      <h2 id="proof-title">Work you can see</h2>
-      <figure>
-        <div>
-          <img
-            src={portfolio.beforeImageUrl}
-            alt={`Before: ${portfolio.caption || "cleaning work"}`}
-          />
-          <span>Before</span>
-        </div>
-        <div>
-          <img
-            src={portfolio.afterImageUrl}
-            alt={`After: ${portfolio.caption || "cleaning work"}`}
-          />
-          <span>After</span>
-        </div>
-      </figure>
-      {portfolio.caption && <p>{portfolio.caption}</p>}
-    </section>
-  );
-}
-
-function ReviewCard({
-  site,
-  definition,
-}: {
-  site: PublicSite;
-  definition: TemplateDefinition;
-}) {
-  const review = firstReview(site);
-  if (!review) return null;
-  return (
-    <section className="site-review" aria-labelledby="review-title">
-      <h2 id="review-title">{definition.reviewTitle}</h2>
-      <article>
-        <div className="review-stars">★★★★★</div>
-        <blockquote>“{review.text}”</blockquote>
-        <cite>
-          — {review.author} ·{" "}
-          {review.source === "google" ? "Google" : "Customer"}
-        </cite>
-      </article>
-    </section>
-  );
-}
-
-function About({ site }: { site: PublicSite }) {
+function About({ site }: { site: PartnerSiteState }) {
   if (!site.partner.about) return null;
   return (
     <section className="site-about">
@@ -154,7 +105,7 @@ function SiteHero({
   definition,
   interactive,
 }: {
-  site: PublicSite;
+  site: PartnerSiteState;
   definition: TemplateDefinition;
   interactive: boolean;
 }) {
@@ -169,7 +120,7 @@ function SiteHero({
         <h1>{business}</h1>
         <p className="hero-tagline">{site.partner.tagline}</p>
         <div className="hero-image">
-          {hero && <img src={hero} alt={`${business} team`} />}
+          <SiteImage src={hero} alt={`${business} team`} />
           <Rating site={site} short />
         </div>
         <h2>{definition.heroHeadline}</h2>
@@ -184,7 +135,7 @@ function SiteHero({
   if (definition.layout === "pro")
     return (
       <header className="site-hero pro">
-        {hero && <img className="hero-background" src={hero} alt="" />}
+        <SiteImage className="hero-background" src={hero} alt="" />
         <div className="hero-shade" />
         <div className="hero-content">
           <span className="verified">
@@ -210,7 +161,7 @@ function SiteHero({
           <HeroAction cta={cta} interactive={interactive} />
         </div>
         <div className="split-media">
-          {hero && <img src={hero} alt={`${business} team`} />}
+          <SiteImage src={hero} alt={`${business} team`} />
           <span>{definition.heroHeadline}</span>
         </div>
       </header>
@@ -226,7 +177,7 @@ function SiteHero({
           <Rating site={site} />
         </div>
         <div className="editorial-media">
-          {hero && <img src={hero} alt={`${business} team`} />}
+          <SiteImage src={hero} alt={`${business} team`} />
           <div>
             <span>{definition.heroHeadline}</span>
             <HeroAction cta={cta} interactive={interactive} />
@@ -237,7 +188,7 @@ function SiteHero({
 
   return (
     <header className="site-hero clean">
-      {hero && <img className="hero-background" src={hero} alt="" />}
+      <SiteImage className="hero-background" src={hero} alt="" />
       <div className="hero-shade" />
       <div className="hero-content">
         <p className="hero-eyebrow">{definition.eyebrow}</p>
@@ -256,7 +207,7 @@ function SiteHero({
   );
 }
 
-function Metrics({ site }: { site: PublicSite }) {
+function Metrics({ site }: { site: PartnerSiteState }) {
   return (
     <section className="pro-metrics">
       <div>
@@ -280,11 +231,13 @@ export function TemplateShell({
   definition,
   compact = false,
   interactive = true,
+  mode = "published",
 }: {
-  site: PublicSite;
+  site: PartnerSiteState;
   definition: TemplateDefinition;
   compact?: boolean;
   interactive?: boolean;
+  mode?: SiteRuntimeMode;
 }) {
   const background =
     site.site.theme.backgroundTone === "warm"
@@ -315,12 +268,12 @@ export function TemplateShell({
           <Services services={site.services} definition={definition} />
         )}
         {definition.layout === "pro" && <Metrics site={site} />}
-        {site.site.sections.portfolio && <Proof site={site} />}
+        {site.site.sections.portfolio && <ProofGallery portfolio={site.portfolio} />}
         {site.site.sections.reviews && (
-          <ReviewCard site={site} definition={definition} />
+          <ReviewSection reviews={site.reviews} title={definition.reviewTitle} />
         )}
         {site.site.sections.about && <About site={site} />}
-        {!compact && <BookingFlow site={site} interactive={interactive} />}
+        {!compact && <BookingFlow site={site} interactive={interactive} mode={mode} />}
       </div>
       {!compact && (
         <footer className="site-footer">
