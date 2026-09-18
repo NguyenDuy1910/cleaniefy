@@ -92,7 +92,7 @@ Vercel injects `BACKEND_INTERNAL_URL` into the frontend through the service bind
 Run migrations against the target database before serving production traffic:
 
 ```bash
-make migrate DATABASE_URL='postgresql+psycopg://…'
+make migrate NEON_DATABASE_URL='postgresql+psycopg://…'
 ```
 
 `vercel.json` declares both service roots explicitly, binds `backend` to `frontend`, and routes public traffic only to `frontend`. On Vercel, connect a public Blob store to the project and make backend environment variables available to Preview and Production. Do not run local SQLite auto-creation in PostgreSQL; apply Alembic migrations instead.

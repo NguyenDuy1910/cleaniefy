@@ -10,9 +10,9 @@ help:
 		'  make check              Run type checks, linting, and tests' \
 		'  make build              Create the production frontend build' \
 		'  make all                Install, verify, and build everything' \
-		'  make migrate DATABASE_URL=<neon-url>' \
+		'  make migrate NEON_DATABASE_URL=<neon-url>' \
 		'                          Apply Alembic migrations to Neon' \
-		'  make migration-status DATABASE_URL=<neon-url>'
+		'  make migration-status NEON_DATABASE_URL=<neon-url>'
 
 install: install-frontend install-backend
 
@@ -57,9 +57,9 @@ build:
 all: install check build
 
 migrate:
-	@test -n "$(DATABASE_URL)" || (printf '%s\n' 'DATABASE_URL is required (use the Neon connection string).' >&2; exit 1)
-	cd backend && DATABASE_URL="$(DATABASE_URL)" uv run alembic upgrade head
+	@test -n "$(DATABASE_URL)$(NEON_DATABASE_URL)" || (printf '%s\n' 'DATABASE_URL or NEON_DATABASE_URL is required (use the Neon connection string).' >&2; exit 1)
+	cd backend && DATABASE_URL="$(DATABASE_URL)" NEON_DATABASE_URL="$(NEON_DATABASE_URL)" uv run alembic upgrade head
 
 migration-status:
-	@test -n "$(DATABASE_URL)" || (printf '%s\n' 'DATABASE_URL is required (use the Neon connection string).' >&2; exit 1)
-	cd backend && DATABASE_URL="$(DATABASE_URL)" uv run alembic current
+	@test -n "$(DATABASE_URL)$(NEON_DATABASE_URL)" || (printf '%s\n' 'DATABASE_URL or NEON_DATABASE_URL is required (use the Neon connection string).' >&2; exit 1)
+	cd backend && DATABASE_URL="$(DATABASE_URL)" NEON_DATABASE_URL="$(NEON_DATABASE_URL)" uv run alembic current
