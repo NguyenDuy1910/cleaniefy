@@ -44,8 +44,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           <label>Email<input name="email" type="email" placeholder="you@example.com" required autoComplete="email" /></label>
           <label>Password<input name="password" type="password" placeholder="At least 8 characters" minLength={8} required autoComplete={create ? "new-password" : "current-password"} /></label>
           {error && <p className="form-error" role="alert">{error}</p>}
-          <button className="button" disabled={loading}>
-            {loading ? <><LoaderCircle className="spin" size={16} /> Working…</> : <>{create ? "Create my page" : "Log in"}<ArrowRight size={16} /></>}
+          <button className="button" disabled={loading} aria-busy={loading}>
+            {loading ? <><LoaderCircle className="spin" size={16} /> {create ? "Creating your page" : "Signing you in"}</> : <>{create ? "Create my page" : "Log in"}<ArrowRight size={16} /></>}
           </button>
         </form>
         {!create && <div className="demo-credentials"><b>Try the demo</b><span>jessica@example.com</span><span>cleanie-demo</span></div>}

@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Check,
   ImagePlus,
+  LoaderCircle,
   Monitor,
   Plus,
   Save,
@@ -156,13 +157,17 @@ export function Editor({ initialOverview }: { initialOverview: Overview }) {
     run("Your Cleanie page is live.", () => requireAction(publishPartnerAction()));
   };
   return (
-    <DashboardFrame active="editor" partnerSlug={overview.partner.slug}>
-      <div className="editor-top">
+    <DashboardFrame active="editor" partnerSlug={overview.partner.slug} wide>
+      <div className="page-editor">
+      <header className="editor-header">
         <div>
           <h1>Edit your page</h1>
-          <p>Keep it simple. Change what customers notice.</p>
+          <p>Customize what customers see.</p>
         </div>
         <div className="editor-top-actions">
+          <span className={`publish-status ${overview.partner.status}`}>
+            <i /> {overview.partner.status === "published" ? "Published" : "Draft"}
+          </span>
           <a
             className="button secondary small"
             href={`/${overview.partner.slug}`}
@@ -171,32 +176,30 @@ export function Editor({ initialOverview }: { initialOverview: Overview }) {
           >
             View page
           </a>
-          <button
-            className="button small"
-            onClick={publish}
-            disabled={busy}
-          >
-            {overview.partner.status === "published"
-              ? "Published"
-              : readiness.ready
-                ? "Publish"
-                : "Finish setup"}
-          </button>
+          {overview.partner.status !== "published" && (
+            <button className="button small" onClick={publish} disabled={busy}>
+              {readiness.ready ? "Publish page" : "Finish setup"}
+            </button>
+          )}
         </div>
-      </div>
-      <div className="editor-layout">
-        <nav className="editor-nav" aria-label="Page editor">
+      </header>
+      <nav className="editor-tabs" aria-label="Page editor" role="tablist">
           {tabs.map(([value, label]) => (
             <button
               key={value}
+              aria-controls="editor-panel"
+              aria-selected={tab === value}
               className={tab === value ? "active" : ""}
               onClick={() => setTab(value)}
+              role="tab"
+              type="button"
             >
               {label}
             </button>
           ))}
-        </nav>
-        <section className="editor-panel">
+      </nav>
+      <div className="editor-workspace">
+        <section className={`editor-panel ${busy ? "is-saving" : ""}`} aria-busy={busy} id="editor-panel" role="tabpanel">
           <div className="editor-panel-header">
             <h2>{tabs.find(([value]) => value === tab)?.[1]}</h2>
             <p>
@@ -211,6 +214,12 @@ export function Editor({ initialOverview }: { initialOverview: Overview }) {
                       : "Keep the essentials current."}
             </p>
           </div>
+          {busy && (
+            <div className="editor-saving-overlay" role="status" aria-live="polite">
+              <span><LoaderCircle className="spin" size={20} /></span>
+              <div><b>Saving your changes</b><small>Your live preview stays in sync.</small></div>
+            </div>
+          )}
           {overview.partner.status !== "published" && (
             <section className="publish-readiness" aria-label="Publish checklist">
               <div>
@@ -248,7 +257,7 @@ export function Editor({ initialOverview }: { initialOverview: Overview }) {
               {error}
             </p>
           )}
-          {tab === "brand" && (
+          <div hidden={tab !== "brand"}>
             <BrandEditor
               overview={overview}
               busy={busy}
@@ -273,16 +282,16 @@ export function Editor({ initialOverview }: { initialOverview: Overview }) {
                 });
               }}
             />
-          )}{" "}
-          {tab === "theme" && (
+          </div>
+          <div hidden={tab !== "theme"}>
             <ThemeEditor
               overview={overview}
               busy={busy}
               onPreview={(site) => updatePreview({ site })}
               onSave={(value) => run("Theme saved.", () => requireAction(updateThemeAction(value)))}
             />
-          )}{" "}
-          {tab === "content" && (
+          </div>
+          <div hidden={tab !== "content"}>
             <ContentEditor
               overview={overview}
               busy={busy}
@@ -291,26 +300,26 @@ export function Editor({ initialOverview }: { initialOverview: Overview }) {
                 run("Section visibility saved.", () => requireAction(updateSectionsAction(sections)))
               }
             />
-          )}{" "}
-          {tab === "services" && (
+          </div>
+          <div hidden={tab !== "services"}>
             <ServicesEditor overview={overview} busy={busy} run={run} />
-          )}{" "}
-          {tab === "gallery" && (
+          </div>
+          <div hidden={tab !== "gallery"}>
             <GalleryEditor overview={overview} busy={busy} run={run} />
-          )}{" "}
-          {tab === "reviews" && (
+          </div>
+          <div hidden={tab !== "reviews"}>
             <ReviewsEditor overview={overview} busy={busy} run={run} />
-          )}{" "}
-          {tab === "booking" && (
+          </div>
+          <div hidden={tab !== "booking"}>
             <BookingEditor
               overview={overview}
               busy={busy}
               run={run}
               onPreview={updatePreview}
             />
-          )}
+          </div>
         </section>
-        <aside className="editor-preview">
+        <aside className="editor-preview" aria-label="Live page preview">
           <div className="preview-heading">
             <span>LIVE PREVIEW</span>
             <div className="preview-devices" aria-label="Preview device">
@@ -335,6 +344,7 @@ export function Editor({ initialOverview }: { initialOverview: Overview }) {
             </div>
           </div>
         </aside>
+      </div>
       </div>
     </DashboardFrame>
   );
@@ -489,7 +499,7 @@ function ThemeEditor({
   };
   return (
     <form
-      className="editor-form"
+      className="editor-form booking-editor-form"
       onSubmit={(event) => {
         event.preventDefault();
         onSave({ template, theme });
@@ -1010,6 +1020,26 @@ function ReviewsEditor({
   );
 }
 
+function EditorSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="editor-form-section">
+      <div className="editor-form-section-heading">
+        <h3>{title}</h3>
+        {description && <p>{description}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 function BookingEditor({
   overview,
   busy,
@@ -1047,11 +1077,13 @@ function BookingEditor({
         save();
       }}
     >
-      <fieldset>
-        <legend>Days available</legend>
-        <div className="day-picker">
+      <EditorSection title="Availability" description="Choose the days and hours customers can request.">
+        <fieldset>
+          <legend>Days available</legend>
+          <div className="day-picker">
           {dayLabels.map((label, day) => (
             <button
+              aria-pressed={availability.weekdays.includes(day)}
               type="button"
               className={availability.weekdays.includes(day) ? "selected" : ""}
               key={label}
@@ -1068,48 +1100,50 @@ function BookingEditor({
               {label}
             </button>
           ))}
+          </div>
+        </fieldset>
+        <div className="form-grid time-range-fields">
+          <label>
+            Start time
+            <input
+              type="time"
+              value={availability.startTime}
+              onChange={(event) =>
+                updateAvailabilityPreview({
+                  ...availability,
+                  startTime: event.target.value,
+                })
+              }
+            />
+          </label>
+          <label>
+            End time
+            <input
+              type="time"
+              value={availability.endTime}
+              onChange={(event) =>
+                updateAvailabilityPreview({
+                  ...availability,
+                  endTime: event.target.value,
+                })
+              }
+            />
+          </label>
         </div>
-      </fieldset>
-      <div className="form-grid">
+      </EditorSection>
+      <EditorSection title="Booking CTA" description="This is the button customers use to start booking.">
         <label>
-          Start time
+          Button label
           <input
-            type="time"
-            value={availability.startTime}
+            value={config.ctaLabel}
             onChange={(event) =>
-              updateAvailabilityPreview({
-                ...availability,
-                startTime: event.target.value,
-              })
+              updateBookingPreview({ ...config, ctaLabel: event.target.value })
             }
           />
         </label>
-        <label>
-          End time
-          <input
-            type="time"
-            value={availability.endTime}
-            onChange={(event) =>
-              updateAvailabilityPreview({
-                ...availability,
-                endTime: event.target.value,
-              })
-            }
-          />
-        </label>
-      </div>
-      <label>
-        Booking CTA
-        <input
-          value={config.ctaLabel}
-          onChange={(event) =>
-            updateBookingPreview({ ...config, ctaLabel: event.target.value })
-          }
-        />
-      </label>
-      <fieldset>
-        <legend>Customer details</legend>
-        <div className="toggle-list compact">
+      </EditorSection>
+      <EditorSection title="Customer information" description="Choose what customers must provide with a booking.">
+        <div className="toggle-list compact setting-toggle-list">
           {(["name", "phone", "email", "address", "notes"] as const).map(
             (field) => (
               <label key={field}>
@@ -1135,9 +1169,8 @@ function BookingEditor({
             ),
           )}
         </div>
-      </fieldset>
-      <fieldset>
-        <legend>Payment</legend>
+      </EditorSection>
+      <EditorSection title="Payment" description="Online payment is not enabled for this page.">
         <label className="radio-option">
           <input
             type="radio"
@@ -1154,20 +1187,22 @@ function BookingEditor({
         <label className="radio-option muted">
           <input type="radio" disabled /> Full payment (coming later)
         </label>
-      </fieldset>
-      <label>
-        Confirmation message
-        <textarea
-          rows={3}
-          value={config.confirmationMessage}
-          onChange={(event) =>
-            updateBookingPreview({
-              ...config,
-              confirmationMessage: event.target.value,
-            })
-          }
-        />
-      </label>
+      </EditorSection>
+      <EditorSection title="Confirmation" description="Shown after a customer sends a booking request.">
+        <label>
+          Confirmation message
+          <textarea
+            rows={3}
+            value={config.confirmationMessage}
+            onChange={(event) =>
+              updateBookingPreview({
+                ...config,
+                confirmationMessage: event.target.value,
+              })
+            }
+          />
+        </label>
+      </EditorSection>
       <button className="button" disabled={busy}>
         <Save size={16} /> Save booking settings
       </button>

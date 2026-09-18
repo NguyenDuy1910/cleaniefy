@@ -9,6 +9,7 @@ import {
   Copy,
   ExternalLink,
   LayoutTemplate,
+  LoaderCircle,
   Palette,
   Share2,
 } from "lucide-react";
@@ -171,11 +172,12 @@ export function DashboardHome({ overview }: { overview: Overview }) {
                   )}
                   <button
                     disabled={saving === template.key || selected}
+                    aria-busy={saving === template.key}
                     style={{ backgroundColor: template.theme.primaryColor }}
                     onClick={() => selectTemplate(template)}
                   >
                     {saving === template.key
-                      ? "Saving…"
+                      ? <><LoaderCircle className="spin" size={14} /> Applying</>
                       : selected
                         ? "Selected"
                         : "Use template"}
@@ -229,10 +231,12 @@ export function DashboardFrame({
   children,
   active = "",
   partnerSlug = "jessica",
+  wide = false,
 }: {
   children: React.ReactNode;
   active?: string;
   partnerSlug?: string;
+  wide?: boolean;
 }) {
   return (
     <div className="dashboard-layout">
@@ -265,7 +269,7 @@ export function DashboardFrame({
           <Share2 size={14} /> View live page
         </Link>
       </aside>
-      <main className="dashboard-main">{children}</main>
+      <main className={`dashboard-main ${wide ? "dashboard-main-wide" : ""}`}>{children}</main>
     </div>
   );
 }

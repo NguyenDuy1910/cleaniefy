@@ -15,10 +15,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function getAvailability(slug: string, date: string, serviceId?: string) {
+export function getAvailability(slug: string, date: string, serviceId?: string, signal?: AbortSignal) {
   const query = new URLSearchParams({ date });
   if (serviceId) query.set("serviceId", serviceId);
-  return request<{ date: string; slots: string[] }>(`/api/public/${encodeURIComponent(slug)}/availability?${query}`);
+  return request<{ date: string; slots: string[] }>(`/api/public/${encodeURIComponent(slug)}/availability?${query}`, { signal });
 }
 
 export function createBooking(slug: string, payload: BookingPayload) {
