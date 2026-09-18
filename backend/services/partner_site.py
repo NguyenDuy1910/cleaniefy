@@ -6,7 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from backend.models import AvailabilityRule, Booking, BookingConfig, Partner, PartnerSiteConfig, PortfolioItem, Review, Service, User
+from models import AvailabilityRule, Booking, BookingConfig, Partner, PartnerSiteConfig, PortfolioItem, Review, Service, User
 
 DEFAULT_THEME = {"primaryColor": "#26573d", "backgroundTone": "light", "fontPreset": "modern", "buttonStyle": "soft"}
 DEFAULT_SECTIONS = {"services": True, "portfolio": True, "reviews": True, "about": True}

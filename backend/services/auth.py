@@ -12,9 +12,9 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.core.config import auth_secret
-from backend.db.session import get_db
-from backend.models import User
+from core.config import auth_secret
+from db.session import get_db
+from models import User
 
 security = HTTPBearer(auto_error=False)
 

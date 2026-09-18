@@ -1,7 +1,8 @@
 import type { AuthResponse, Availability, Booking, BookingConfig, BookingPayload, Overview, Partner, PortfolioItem, PublicSite, Review, SectionConfig, Service, TemplateKey, ThemeConfig } from "@/lib/types";
 
 const browserBase = process.env.NEXT_PUBLIC_API_BASE_URL || "/api/v1";
-const serverBase = process.env.API_INTERNAL_BASE_URL || (process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/api/v1` : "http://localhost:8000/api/v1");
+const backendOrigin = (process.env.BACKEND_INTERNAL_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
+const serverBase = `${backendOrigin}/api/v1`;
 
 export class ApiError extends Error { constructor(message: string, public status: number, public detail?: unknown) { super(message); } }
 

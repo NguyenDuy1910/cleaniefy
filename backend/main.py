@@ -5,10 +5,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.api.routes import router
-from backend.core.config import is_local_database
-from backend.db.session import Base, engine
-from backend.seed import seed_demo_data
+from api.routes import router
+from core.config import is_local_database
+from db.session import Base, engine
+from seed import seed_demo_data
 
 
 @asynccontextmanager

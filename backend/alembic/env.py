@@ -3,9 +3,9 @@ from __future__ import with_statement
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from backend.core.config import database_url
-from backend.db.session import Base
-import backend.models  # noqa: F401 - register model metadata
+from core.config import database_url
+from db.session import Base
+import models  # noqa: F401 - register model metadata
 
 config = context.config
 config.set_main_option("sqlalchemy.url", database_url())

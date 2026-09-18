@@ -4,10 +4,10 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 
-from backend.db.session import SessionLocal
-from backend.models import Booking, Partner, PortfolioItem, Review, Service, User
-from backend.services.auth import hash_password
-from backend.services.partner_site import install_defaults
+from db.session import SessionLocal
+from models import Booking, Partner, PortfolioItem, Review, Service, User
+from services.auth import hash_password
+from services.partner_site import install_defaults
 
 
 DEMO_USERS = (

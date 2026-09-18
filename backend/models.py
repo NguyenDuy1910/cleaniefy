@@ -7,7 +7,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, Uni
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
-from backend.db.session import Base
+from db.session import Base
 
 
 def uid() -> str:

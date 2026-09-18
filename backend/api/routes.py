@@ -8,12 +8,12 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from backend.core.slugs import RESERVED_PARTNER_SLUGS, suggest_slug, validate_slug
-from backend.db.session import get_db
-from backend.models import AvailabilityRule, Booking, BookingConfig, Partner, PartnerSiteConfig, PortfolioItem, Review, Service, User
-from backend.schemas import (AvailabilityUpdate, BookingConfigUpdate, Login, PartnerUpdate, PortfolioCreate, PublicBookingCreate, ReviewCreate, SectionsConfig, ServiceCreate, ServiceUpdate, SignUp, ThemeUpdate)
-from backend.services.auth import create_access_token, current_user, hash_password, verify_password
-from backend.services.partner_site import (availability_dict, booking_config_dict, booking_dict, install_defaults, overview_payload, owned_partner, partner_dict, portfolio_dict, public_site_payload, published_partner, review_dict, service_dict, site_dict)
+from core.slugs import RESERVED_PARTNER_SLUGS, suggest_slug, validate_slug
+from db.session import get_db
+from models import AvailabilityRule, Booking, BookingConfig, Partner, PartnerSiteConfig, PortfolioItem, Review, Service, User
+from schemas import (AvailabilityUpdate, BookingConfigUpdate, Login, PartnerUpdate, PortfolioCreate, PublicBookingCreate, ReviewCreate, SectionsConfig, ServiceCreate, ServiceUpdate, SignUp, ThemeUpdate)
+from services.auth import create_access_token, current_user, hash_password, verify_password
+from services.partner_site import (availability_dict, booking_config_dict, booking_dict, install_defaults, overview_payload, owned_partner, partner_dict, portfolio_dict, public_site_payload, published_partner, review_dict, service_dict, site_dict)
 
 router = APIRouter(prefix="/api/v1")
 

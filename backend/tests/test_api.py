@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 from fastapi.testclient import TestClient
 
-from backend.main import app
+from main import app
 
 
 def auth_header(client: TestClient, email: str, password: str = "cleanie-demo") -> dict[str, str]:

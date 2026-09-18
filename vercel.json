@@ -1,8 +1,23 @@
 {
+  "services": {
+    "frontend": {
+      "root": "frontend/",
+      "framework": "nextjs",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "backend",
+          "format": "url",
+          "env": "BACKEND_INTERNAL_URL"
+        }
+      ]
+    },
+    "backend": {
+      "root": "backend/",
+      "entrypoint": "main:app"
+    }
+  },
   "rewrites": [
-    { "source": "/api/v1/(.*)", "destination": "/api/index.py" }
-  ],
-  "functions": {
-    "api/index.py": { "maxDuration": 10 }
-  }
+    { "source": "/(.*)", "destination": { "service": "frontend" } }
+  ]
 }

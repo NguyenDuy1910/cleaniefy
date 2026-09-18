@@ -5,8 +5,8 @@ Revises:
 Create Date: 2026-09-18
 """
 from alembic import op
-from backend.db.session import Base
-import backend.models  # noqa: F401 - ensures every table is registered
+from db.session import Base
+import models  # noqa: F401 - ensures every table is registered
 
 revision = "20260918_0001"
 down_revision = None
