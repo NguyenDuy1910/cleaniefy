@@ -78,7 +78,7 @@ For a production-shaped local process that starts both services and supplies bin
 
 ## Neon, Blob, and deployment
 
-Use the service-scoped examples: `backend/.env.example` contains database, auth, and Blob configuration; `frontend/.env.example` contains only local development defaults. The backend reads **only** `NEON_DATABASE_URL` for hosted PostgreSQL; local development falls back to SQLite only when it is absent.
+Use the service-scoped examples: `backend/.env.example` contains database, auth, and Blob configuration; `frontend/.env.example` contains only local development defaults. On startup, `backend/core/config.py` loads `backend/.env` without overriding variables supplied by Vercel or your shell. The backend reads **only** `NEON_DATABASE_URL` for hosted PostgreSQL; local development falls back to SQLite only when it is absent.
 
 Connect Neon and Vercel Blob to the Vercel project, then expose these values to the **backend** service in Preview and Production:
 

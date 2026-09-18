@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+import os
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
+
+# Keep the test suite entirely local even when backend/.env contains a direct
+# Neon URL. This must happen before importing the application and its engine.
+os.environ["NEON_DATABASE_URL"] = "sqlite:///./cleanie-test.db"
 
 from core.config import database_url
 from main import app
