@@ -88,7 +88,7 @@ DATABASE_URL=postgresql://…
 AUTH_SECRET=<long random secret>
 BLOB_STORE_ID=store_<connected-blob-store>
 BLOB_READ_WRITE_TOKEN=<server-only token for client upload tokens>
-NEXT_PUBLIC_APP_URL=https://cleandly.com
+NEXT_PUBLIC_APP_URL=https://cleaniefy.vercel.app
 ```
 
 When deployed on Vercel, the Blob SDK prefers its automatically injected OIDC
