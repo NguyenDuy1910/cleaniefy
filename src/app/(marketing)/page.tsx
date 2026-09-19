@@ -1,5 +1,4 @@
 import Link from "next/link";
-import type { CSSProperties } from "react";
 import {
   ArrowRight,
   CalendarDays,
@@ -7,19 +6,18 @@ import {
   Share2,
   Sparkles,
 } from "lucide-react";
-import { TEMPLATE_CATALOG } from "@/templates/catalog";
 
 const steps = [
   [
     "01",
-    "Choose your layout",
-    "Pick a proven page built for solo cleaners, warm residential brands, or growing teams.",
+    "Choose your service",
+    "Tell us what you offer and where you work.",
     Palette,
   ],
   [
     "02",
-    "Make it yours",
-    "Add your services, proof, reviews, availability, and the details your customers need.",
+    "Add the essentials",
+    "Select services and prices, set your hours, and upload your best work.",
     Sparkles,
   ],
   [
@@ -45,7 +43,6 @@ export default function HomePage() {
         </Link>
         <div className="nav-links">
           <a href="#how-it-works">How it works</a>
-          <Link href="/templates">Templates</Link>
           <Link href="/pricing">Pricing</Link>
           <Link href="/login">Log in</Link>
           <Link className="button small" href="/signup">
@@ -124,38 +121,7 @@ export default function HomePage() {
         </div>
       </section>
       <section className="section" id="templates">
-        <div className="templates-promo">
-          <div>
-            <div className="eyebrow">Ten conversion-first templates</div>
-            <h2>A distinct page for the way you clean.</h2>
-            <p>
-              Choose from 10 focused directions—from warm residential care to
-              concierge-level detail. Each uses your real services, proof,
-              reviews, availability, and booking flow.
-            </p>
-            <Link className="button" href="/templates">
-              Explore templates <ArrowRight size={16} />
-            </Link>
-          </div>
-          <div className="landing-template-grid">
-            {TEMPLATE_CATALOG.map((template) => (
-              <article
-                className={`landing-template-card ${template.layout}`}
-                key={template.key}
-                style={
-                  {
-                    "--template-color": template.theme.primaryColor,
-                  } as CSSProperties
-                }
-              >
-                <span>{template.layout}</span>
-                <b>{template.title}</b>
-                <i />
-                <i />
-              </article>
-            ))}
-          </div>
-        </div>
+        <div className="templates-promo"><div><div className="eyebrow">One polished page</div><h2>Your services make it yours.</h2><p>Cleanie turns your business information, photos, reviews, and hours into a page customers can trust and book.</p><Link className="button" href="/signup">Create your page <ArrowRight size={16} /></Link></div></div>
       </section>
       <footer className="footer">
         © {new Date().getFullYear()} Cleanie. One page. More bookings.

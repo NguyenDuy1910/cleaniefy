@@ -10,5 +10,5 @@ export default function BookingsPage() {
 
 async function BookingsContent() {
   const partner = await requirePartner();
-  return <BookingsView partnerSlug={partner.slug} bookings={await getPartnerBookings(partner.id)} />;
+  return <BookingsView partnerSlug={partner.slug} published={partner.status === "published"} bookings={await getPartnerBookings(partner.id)} />;
 }

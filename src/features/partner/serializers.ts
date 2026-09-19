@@ -24,11 +24,13 @@ export function serializePartner(row: typeof partners.$inferSelect): Partner {
   return {
     id: row.id,
     businessName: row.businessName,
+    serviceCategory: row.serviceCategory,
     slug: row.slug,
     tagline: row.tagline,
     serviceArea: row.serviceArea,
     profileImageUrl: normalizeMediaUrl(row.profileImageUrl),
     heroImageUrl: normalizeMediaUrl(row.heroImageUrl),
+    instagramUrl: row.instagramUrl,
     about: row.about,
     status: row.status as Partner["status"],
     publishedAt: row.publishedAt?.toISOString() ?? null,
@@ -41,6 +43,7 @@ export function serializeService(row: typeof services.$inferSelect): Service {
     name: row.name,
     description: row.description,
     priceCents: row.priceCents,
+    priceMode: row.priceMode as Service["priceMode"],
     durationMinutes: row.durationMinutes,
     active: row.active,
     sortOrder: row.sortOrder,
@@ -50,6 +53,7 @@ export function serializeService(row: typeof services.$inferSelect): Service {
 export function serializePortfolio(row: typeof portfolioItems.$inferSelect): PortfolioItem {
   return {
     id: row.id,
+    serviceId: row.serviceId,
     beforeImageUrl: normalizeMediaUrl(row.beforeImageUrl) ?? row.beforeImageUrl,
     afterImageUrl: normalizeMediaUrl(row.afterImageUrl) ?? row.afterImageUrl,
     caption: row.caption,

@@ -21,6 +21,12 @@ export function getAvailability(slug: string, date: string, serviceId?: string, 
   return request<{ date: string; slots: string[] }>(`/api/public/${encodeURIComponent(slug)}/availability?${query}`, { signal });
 }
 
+export function getPreviewAvailability(date: string, availability: import("./types").Availability, durationMinutes: number, signal?: AbortSignal) {
+  return request<{ date: string; slots: string[] }>("/api/preview/availability", {
+    method: "POST", signal, body: JSON.stringify({ date, availability, durationMinutes }),
+  });
+}
+
 export function createBooking(slug: string, payload: BookingPayload) {
   return request<Booking>(`/api/public/${encodeURIComponent(slug)}/bookings`, { method: "POST", body: JSON.stringify(payload) });
 }

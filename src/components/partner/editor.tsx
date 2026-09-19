@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Check,
+  ChevronDown,
   ImagePlus,
   LoaderCircle,
   Monitor,
@@ -14,20 +15,17 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { updatePartnerProfileAction, updateSectionsAction, updateThemeAction, publishPartnerAction } from "@/features/partner/actions";
+import { updatePartnerProfileAction, updateThemeAction, publishPartnerAction } from "@/features/partner/actions";
 import { createServiceAction, deleteServiceAction, updateServiceAction } from "@/features/services/actions";
 import { createPortfolioItemAction, deletePortfolioItemAction } from "@/features/portfolio/actions";
 import { createReviewAction, deleteReviewAction } from "@/features/reviews/actions";
-import { updateAvailabilityAction, updateBookingConfigAction } from "@/features/booking/actions";
+import { updateAvailabilityAction } from "@/features/booking/actions";
 import { uploadPartnerMedia } from "@/lib/blob/client";
 import type { ActionResult } from "@/lib/utils/actions";
-import { TEMPLATE_CATALOG, getTemplateDefinition } from "@/templates/catalog";
 import type {
-  BookingConfig,
   Overview,
   PublicSite,
   Service,
-  TemplateKey,
   ThemeConfig,
 } from "@/lib/types";
 import { DashboardFrame } from "./dashboard-home";
@@ -38,19 +36,15 @@ import type { PartnerSiteState } from "@/features/partner/types";
 type Tab =
   | "brand"
   | "theme"
-  | "content"
   | "services"
-  | "gallery"
   | "reviews"
   | "booking";
 const tabs: [Tab, string][] = [
-  ["brand", "Brand"],
-  ["theme", "Theme"],
-  ["content", "Content"],
+  ["brand", "Your profile"],
   ["services", "Services"],
-  ["gallery", "Gallery"],
   ["reviews", "Reviews"],
   ["booking", "Booking"],
+  ["theme", "Look"],
 ];
 const colors = ["#26573d", "#8f5733", "#243873", "#73385c", "#1f1f1f"];
 
@@ -65,8 +59,10 @@ type PreviewUpdate = {
 };
 const tabForRequirement = {
   businessName: "brand",
-  slug: "brand",
+  profileImage: "brand",
+  serviceArea: "brand",
   service: "services",
+  availability: "booking",
 } as const satisfies Record<Overview["publishReadiness"]["requirements"][number]["key"], Tab>;
 async function requireAction<T>(result: Promise<ActionResult<T>>) {
   const response = await result;
@@ -91,9 +87,8 @@ export function Editor({ initialOverview }: { initialOverview: Overview }) {
     temporaryImageUrls.current.forEach((url) => URL.revokeObjectURL(url));
   }, []);
   useEffect(() => {
-    const requested = new URLSearchParams(location.search).get(
-      "tab",
-    ) as Tab | null;
+    const requestedValue = new URLSearchParams(location.search).get("tab");
+    const requested = (requestedValue === "gallery" ? "services" : requestedValue) as Tab | null;
     if (requested && tabs.some(([value]) => value === requested))
       setTab(requested);
   }, []);
@@ -156,12 +151,12 @@ export function Editor({ initialOverview }: { initialOverview: Overview }) {
     run("Your Cleanie page is live.", () => requireAction(publishPartnerAction()));
   };
   return (
-    <DashboardFrame active="editor" partnerSlug={overview.partner.slug} wide>
+    <DashboardFrame active="editor" partnerSlug={overview.partner.slug} published={overview.partner.status === "published"} wide>
       <div className="page-editor">
       <header className="editor-header">
         <div>
-          <h1>Edit your page</h1>
-          <p>Customize what customers see.</p>
+          <h1>Set up your page</h1>
+          <p>Add the essentials. Cleanie handles the website.</p>
         </div>
         <div className="editor-top-actions">
           <span className={`publish-status ${overview.partner.status}`}>
@@ -191,36 +186,11 @@ export function Editor({ initialOverview }: { initialOverview: Overview }) {
           )}
         </div>
       </header>
-      <nav className="editor-tabs" aria-label="Page editor" role="tablist">
-          {tabs.map(([value, label]) => (
-            <button
-              key={value}
-              aria-controls="editor-panel"
-              aria-selected={tab === value}
-              className={tab === value ? "active" : ""}
-              onClick={() => setTab(value)}
-              role="tab"
-              type="button"
-            >
-              {label}
-            </button>
-          ))}
-      </nav>
       <div className="editor-workspace">
-        <section className={`editor-panel ${busy ? "is-saving" : ""}`} aria-busy={busy} id="editor-panel" role="tabpanel">
+        <section className={`editor-panel ${busy ? "is-saving" : ""}`} aria-busy={busy} id="editor-panel">
           <div className="editor-panel-header">
-            <h2>{tabs.find(([value]) => value === tab)?.[1]}</h2>
-            <p>
-              {tab === "brand"
-                ? "The identity customers recognize."
-                : tab === "theme"
-                  ? "Choose a focused visual direction."
-                  : tab === "content"
-                    ? "Cleanie keeps the conversion order intact."
-                    : tab === "booking"
-                      ? "Control how customers request a clean."
-                      : "Keep the essentials current."}
-            </p>
+            <h2>Your business, in a few clicks</h2>
+            <p>Choose a section to add or update your information.</p>
           </div>
           {busy && (
             <div className="editor-saving-overlay" role="status" aria-live="polite">
@@ -265,7 +235,10 @@ export function Editor({ initialOverview }: { initialOverview: Overview }) {
               {error}
             </p>
           )}
-          <div hidden={tab !== "brand"}>
+          <div className="editor-accordion-nav" aria-label="Setup sections">
+            {tabs.map(([value, label]) => <button className={tab === value ? "active" : ""} key={value} type="button" onClick={() => setTab(value)} aria-expanded={tab === value}>{label}</button>)}
+          </div>
+          <div className="editor-active-section" hidden={tab !== "brand"}>
             <BrandEditor
               overview={overview}
               busy={busy}
@@ -296,7 +269,7 @@ export function Editor({ initialOverview }: { initialOverview: Overview }) {
               }}
             />
           </div>
-          <div hidden={tab !== "theme"}>
+          <div className="editor-active-section" hidden={tab !== "theme"}>
             <ThemeEditor
               overview={overview}
               busy={busy}
@@ -304,26 +277,18 @@ export function Editor({ initialOverview }: { initialOverview: Overview }) {
               onSave={(value) => run("Theme saved.", () => requireAction(updateThemeAction(value)))}
             />
           </div>
-          <div hidden={tab !== "content"}>
-            <ContentEditor
-              overview={overview}
-              busy={busy}
-              onPreview={(sections) => updatePreview({ site: { sections } })}
-              onSave={(sections) =>
-                run("Section visibility saved.", () => requireAction(updateSectionsAction(sections)))
-              }
-            />
+          <div className="editor-active-section" hidden={tab !== "services"}>
+            <div className="editor-service-stack">
+              <section className="editor-service-section" aria-labelledby="editor-services-heading">
+                <header><span>1</span><div><h3 id="editor-services-heading">Services, pricing and results</h3><p>Each service keeps its own price, duration and before-and-after gallery.</p></div></header>
+                <ServicesEditor overview={overview} busy={busy} run={run} previewServices={preview.services} previewPortfolio={preview.portfolio} onPreview={(services) => updatePreview({ services })} onPreviewPortfolio={(portfolio) => updatePreview({ portfolio })} />
+              </section>
+            </div>
           </div>
-          <div hidden={tab !== "services"}>
-            <ServicesEditor overview={overview} busy={busy} run={run} previewServices={preview.services} onPreview={(services) => updatePreview({ services })} />
-          </div>
-          <div hidden={tab !== "gallery"}>
-            <GalleryEditor overview={overview} busy={busy} run={run} previewPortfolio={preview.portfolio} onPreview={(portfolio) => updatePreview({ portfolio })} />
-          </div>
-          <div hidden={tab !== "reviews"}>
+          <div className="editor-active-section" hidden={tab !== "reviews"}>
             <ReviewsEditor overview={overview} busy={busy} run={run} previewReviews={preview.reviews} onPreview={(reviews) => updatePreview({ reviews })} />
           </div>
-          <div hidden={tab !== "booking"}>
+          <div className="editor-active-section" hidden={tab !== "booking"}>
             <BookingEditor
               overview={overview}
               busy={busy}
@@ -339,291 +304,114 @@ export function Editor({ initialOverview }: { initialOverview: Overview }) {
   );
 }
 
-function BrandEditor({
-  overview,
-  busy,
-  onSave,
-  onUpload,
-  onPreview,
-}: {
+const categories = ["Home Cleaner", "Office Cleaner", "Airbnb Cleaner", "Car Detailer", "Window Cleaner", "Carpet Cleaner", "Other"] as const;
+const audiences = ["Families", "Busy professionals", "Offices", "Airbnb hosts", "Everyone"] as const;
+const qualities = ["Reliable", "Friendly", "Detailed", "Fast", "Eco-friendly", "Premium"] as const;
+const usServiceAreas = [
+  "New York, NY", "Los Angeles, CA", "Chicago, IL", "Houston, TX", "Phoenix, AZ",
+  "Philadelphia, PA", "San Antonio, TX", "San Diego, CA", "Dallas, TX", "Austin, TX",
+  "Jacksonville, FL", "Fort Worth, TX", "San Jose, CA", "Columbus, OH", "Charlotte, NC",
+  "Indianapolis, IN", "San Francisco, CA", "Seattle, WA", "Denver, CO", "Washington, DC",
+  "Nashville, TN", "Las Vegas, NV", "Boston, MA", "Portland, OR", "Detroit, MI",
+  "Atlanta, GA", "Kansas City, MO", "Raleigh, NC", "Miami, FL", "Orlando, FL",
+  "Tampa, FL", "Minneapolis, MN", "New Orleans, LA", "Cleveland, OH", "Pittsburgh, PA",
+] as const;
+function generatedIntro(category: string, audience: string, quality: string, area: string) {
+  const service = category === "Other" ? "local service" : category.toLowerCase().replace(/cleaner$/, "cleaning").replace(/detailer$/, "detailing");
+  const forWhom = audience === "Everyone" ? "" : ` for ${audience.toLowerCase()}`;
+  const where = area && area !== "Your local area" ? ` in ${area}` : "";
+  return `${quality} ${service}${forWhom}${where}.`;
+}
+function BrandEditor({ overview, busy, onSave, onUpload, onPreview }: {
   overview: Overview;
   busy: boolean;
-  onSave: (value: Record<string, string>) => void;
+  onSave: (value: Record<string, string | null>) => void;
   onUpload: (file: File, purpose: "profile" | "hero") => void;
   onPreview: (value: Partial<PublicSite["partner"]>) => void;
 }) {
-  const [slugState, setSlugState] = useState(overview.partner.slug);
-  return (
-    <form
-      className="editor-form"
-      onSubmit={(event) => {
-        event.preventDefault();
-        const form = new FormData(event.currentTarget);
-        onSave({
-          businessName: String(form.get("businessName")),
-          tagline: String(form.get("tagline")),
-          serviceArea: String(form.get("serviceArea")),
-          about: String(form.get("about")),
-          slug: slugState,
-        });
-      }}
-    >
-      <div className="image-upload-row">
-        <label className="image-upload">
-          {overview.partner.profileImageUrl ? (
-            <img src={overview.partner.profileImageUrl} alt="Current profile" />
-          ) : (
-            <Upload size={21} />
-          )}
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={(event) =>
-              event.target.files?.[0] &&
-              onUpload(event.target.files[0], "profile")
-            }
-          />
-          <span>Profile photo</span>
-        </label>
-        <label className="image-upload wide">
-          {overview.partner.heroImageUrl ? (
-            <img src={overview.partner.heroImageUrl} alt="Current hero" />
-          ) : (
-            <ImagePlus size={21} />
-          )}
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={(event) =>
-              event.target.files?.[0] && onUpload(event.target.files[0], "hero")
-            }
-          />
-          <span>Hero image</span>
-        </label>
-      </div>
-      <label>
-        Business name
-        <input
-          name="businessName"
-          defaultValue={overview.partner.businessName}
-          onChange={(event) => onPreview({ businessName: event.target.value })}
-          required
-        />
-      </label>
-      <label>
-        Your Cleanie link
-        <div className="slug-input">
-          <span>cleanie.app/</span>
-          <input
-            value={slugState}
-            onChange={(event) => {
-              const slug = event.target.value
-                .toLowerCase()
-                .replace(/\s+/g, "-");
-              setSlugState(slug);
-              onPreview({ slug });
-            }}
-            required
-          />
-        </div>
-      </label>
-      <label>
-        Tagline
-        <input
-          name="tagline"
-          defaultValue={overview.partner.tagline}
-          onChange={(event) => onPreview({ tagline: event.target.value })}
-          required
-        />
-      </label>
-      <label>
-        Service area
-        <input
-          name="serviceArea"
-          defaultValue={overview.partner.serviceArea}
-          onChange={(event) => onPreview({ serviceArea: event.target.value })}
-          required
-        />
-      </label>
-      <label>
-        About your business
-        <textarea
-          name="about"
-          rows={4}
-          defaultValue={overview.partner.about || ""}
-          placeholder="A short, welcoming introduction."
-          onChange={(event) => onPreview({ about: event.target.value })}
-        />
-      </label>
-      <button className="button" disabled={busy}>
-        <Save size={16} /> Save brand
-      </button>
-    </form>
-  );
+  const [name, setName] = useState(overview.partner.businessName);
+  const [slug, setSlug] = useState(overview.partner.slug);
+  const [category, setCategory] = useState(overview.partner.serviceCategory);
+  const [area, setArea] = useState(overview.partner.serviceArea === "Your local area" ? "" : overview.partner.serviceArea);
+  const [audience, setAudience] = useState<(typeof audiences)[number]>("Families");
+  const [quality, setQuality] = useState<(typeof qualities)[number]>("Reliable");
+  const [tagline, setTagline] = useState(overview.partner.tagline === "Thoughtful cleaning, made easy." ? "" : overview.partner.tagline);
+  const [instagramUrl, setInstagramUrl] = useState(overview.partner.instagramUrl ?? "");
+  const [editingIntro, setEditingIntro] = useState(false);
+  const [editingLink, setEditingLink] = useState(false);
+  const suggested = generatedIntro(category, audience, quality, area);
+  return <form className="editor-form" onSubmit={(event) => {
+    event.preventDefault();
+    onSave({ businessName: name, slug, serviceCategory: category, serviceArea: area, tagline: tagline || suggested, instagramUrl: instagramUrl.trim() || null });
+  }}>
+    <div className="image-upload-row">
+      <label className="image-upload">{overview.partner.profileImageUrl ? <img src={overview.partner.profileImageUrl} alt="Current profile" /> : <Upload size={21} />}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => event.target.files?.[0] && onUpload(event.target.files[0], "profile")} /><span>Profile photo</span></label>
+      <label className="image-upload wide">{overview.partner.heroImageUrl ? <img src={overview.partner.heroImageUrl} alt="Current cover" /> : <ImagePlus size={21} />}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => event.target.files?.[0] && onUpload(event.target.files[0], "hero")} /><span>Cover image</span></label>
+    </div>
+    <label>Business name<input value={name} onChange={(event) => { setName(event.target.value); onPreview({ businessName: event.target.value }); }} required /></label>
+    <fieldset><legend>What do you do?</legend><div className="choice-row profile-choice-row">{categories.map((item) => <button key={item} type="button" className={category === item ? "selected" : ""} aria-pressed={category === item} onClick={() => { setCategory(item); onPreview({ serviceCategory: item }); }}>{item}</button>)}</div></fieldset>
+    <label>Where do you work?
+      <input
+        list="us-service-areas"
+        value={area}
+        onChange={(event) => { setArea(event.target.value); onPreview({ serviceArea: event.target.value }); }}
+        autoComplete="address-level2"
+        placeholder="Search a US city"
+        aria-describedby="service-area-help"
+        required
+      />
+      <small id="service-area-help">Choose a city below, or enter another US service area.</small>
+      <datalist id="us-service-areas">{usServiceAreas.map((serviceArea) => <option key={serviceArea} value={serviceArea} />)}</datalist>
+    </label>
+    <div className="service-area-suggestions" aria-label="Popular service areas">
+      {usServiceAreas.slice(0, 6).map((serviceArea) => <button key={serviceArea} type="button" className={area === serviceArea ? "selected" : ""} onClick={() => { setArea(serviceArea); onPreview({ serviceArea }); }}>{serviceArea}</button>)}
+    </div>
+    <fieldset><legend>Who do you mainly serve?</legend><div className="choice-row profile-choice-row">{audiences.map((item) => <button key={item} type="button" className={audience === item ? "selected" : ""} aria-pressed={audience === item} onClick={() => setAudience(item)}>{item}</button>)}</div></fieldset>
+    <fieldset><legend>How would you describe your service?</legend><div className="choice-row profile-choice-row">{qualities.map((item) => <button key={item} type="button" className={quality === item ? "selected" : ""} aria-pressed={quality === item} onClick={() => setQuality(item)}>{item}</button>)}</div></fieldset>
+    <div className="generated-intro"><span>Suggested intro</span><p>{suggested}</p><button type="button" onClick={() => { setTagline(suggested); onPreview({ tagline: suggested }); }}>Use this</button><button type="button" onClick={() => setEditingIntro((value) => !value)}>{editingIntro ? "Done" : "Edit"}</button></div>
+    {editingIntro && <label>Short intro<input maxLength={240} value={tagline} onChange={(event) => { setTagline(event.target.value); onPreview({ tagline: event.target.value }); }} placeholder={suggested} /></label>}
+    <label>Instagram profile
+      <input
+        inputMode="url"
+        maxLength={1000}
+        placeholder="https://www.instagram.com/yourbusiness/"
+        type="url"
+        value={instagramUrl}
+        onChange={(event) => { setInstagramUrl(event.target.value); onPreview({ instagramUrl: event.target.value || null }); }}
+      />
+      <small>Optional. Shown on your public profile.</small>
+    </label>
+    <button type="button" className="text-action" onClick={() => setEditingLink((value) => !value)}>Your link: /{slug} · Change</button>
+    {editingLink && <label>Cleanie link<input value={slug} onChange={(event) => { const value = event.target.value.toLowerCase().replace(/\s+/g, "-"); setSlug(value); onPreview({ slug: value }); }} required /></label>}
+    <button className="button" disabled={busy}><Save size={16} /> Save profile</button>
+  </form>;
 }
 
-function ThemeEditor({
-  overview,
-  busy,
-  onSave,
-  onPreview,
-}: {
+function ThemeEditor({ overview, busy, onSave, onPreview }: {
   overview: Overview;
   busy: boolean;
-  onSave: (value: { template?: TemplateKey; theme?: ThemeConfig }) => void;
+  onSave: (value: { theme: ThemeConfig }) => void;
   onPreview: (value: PreviewUpdate["site"]) => void;
 }) {
   const [theme, setTheme] = useState<ThemeConfig>(overview.site.theme);
-  const [template, setTemplate] = useState<TemplateKey>(overview.site.template);
-  const selectTemplate = (value: TemplateKey) => {
-    const nextTheme = { ...getTemplateDefinition(value).theme };
-    setTemplate(value);
-    setTheme(nextTheme);
-    onPreview({ template: value, theme: nextTheme });
+  const presets = [
+    { label: "Clean", color: "#26573d", tone: "light" },
+    { label: "Warm", color: "#8f5733", tone: "warm" },
+    { label: "Premium", color: "#243873", tone: "cool" },
+    { label: "Bold", color: "#73385c", tone: "light" },
+  ] as const;
+  const select = (update: Partial<ThemeConfig>) => {
+    const next = { ...theme, ...update };
+    setTheme(next);
+    onPreview({ theme: next });
+    onSave({ theme: next });
   };
-  const updateThemePreview = (update: Partial<ThemeConfig>) => {
-    const nextTheme = { ...theme, ...update };
-    setTheme(nextTheme);
-    onPreview({ template, theme: nextTheme });
-  };
-  return (
-    <form
-      className="editor-form booking-editor-form"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onSave({ template, theme });
-      }}
-    >
-      <fieldset>
-        <legend>Template</legend>
-        <div className="choice-row template-choice-row">
-          {TEMPLATE_CATALOG.map((item) => (
-            <button
-              type="button"
-              className={template === item.key ? "selected" : ""}
-              key={item.key}
-              onClick={() => selectTemplate(item.key)}
-            >
-              {item.title}
-            </button>
-          ))}
-        </div>
-      </fieldset>
-      <fieldset>
-        <legend>Brand color</legend>
-        <div className="color-row">
-          {colors.map((color) => (
-            <button
-              type="button"
-              className={theme.primaryColor === color ? "selected" : ""}
-              key={color}
-              style={{ backgroundColor: color }}
-              onClick={() => updateThemePreview({ primaryColor: color })}
-            >
-              <span className="sr-only">Use {color}</span>
-            </button>
-          ))}
-        </div>
-      </fieldset>
-      <fieldset>
-        <legend>Typography</legend>
-        <div className="choice-row">
-          <button
-            type="button"
-            className={theme.fontPreset === "modern" ? "selected" : ""}
-            onClick={() => updateThemePreview({ fontPreset: "modern" })}
-          >
-            Modern
-          </button>
-          <button
-            type="button"
-            className={theme.fontPreset === "soft" ? "selected" : ""}
-            onClick={() => updateThemePreview({ fontPreset: "soft" })}
-          >
-            Soft
-          </button>
-        </div>
-      </fieldset>
-      <fieldset>
-        <legend>Button shape</legend>
-        <div className="choice-row">
-          <button
-            type="button"
-            className={theme.buttonStyle === "soft" ? "selected" : ""}
-            onClick={() => updateThemePreview({ buttonStyle: "soft" })}
-          >
-            Soft
-          </button>
-          <button
-            type="button"
-            className={theme.buttonStyle === "pill" ? "selected" : ""}
-            onClick={() => updateThemePreview({ buttonStyle: "pill" })}
-          >
-            Pill
-          </button>
-        </div>
-      </fieldset>
-      <button className="button" disabled={busy}>
-        <Save size={16} /> Save theme
-      </button>
-    </form>
-  );
-}
-
-function ContentEditor({
-  overview,
-  busy,
-  onSave,
-  onPreview,
-}: {
-  overview: Overview;
-  busy: boolean;
-  onSave: (value: Overview["site"]["sections"]) => void;
-  onPreview: (value: Overview["site"]["sections"]) => void;
-}) {
-  const [sections, setSections] = useState(overview.site.sections);
-  const labels: [keyof typeof sections, string, string][] = [
-    ["services", "Services", "What customers can book"],
-    ["portfolio", "Before & after", "Show your work"],
-    ["reviews", "Google reviews", "Social proof from customers"],
-    ["about", "About", "A short introduction"],
-  ];
-  return (
-    <form
-      className="editor-form"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onSave(sections);
-      }}
-    >
-      <p className="editor-helper">
-        Turn sections on or off. Their order stays optimized by Cleanie.
-      </p>
-      <div className="toggle-list">
-        {labels.map(([key, title, description]) => (
-          <label key={key}>
-            <span>
-              <b>{title}</b>
-              <small>{description}</small>
-            </span>
-            <input
-              type="checkbox"
-              checked={sections[key]}
-              onChange={() => {
-                const nextSections = { ...sections, [key]: !sections[key] };
-                setSections(nextSections);
-                onPreview(nextSections);
-              }}
-            />
-            <i />
-          </label>
-        ))}
-      </div>
-      <button className="button" disabled={busy}>
-        <Save size={16} /> Save sections
-      </button>
-    </form>
-  );
+  return <div className="editor-form">
+    <p className="editor-helper">Your content always uses the same customer-friendly layout. Pick a color direction.</p>
+    <fieldset><legend>Style</legend><div className="choice-row profile-choice-row">{presets.map((preset) => <button key={preset.label} type="button" className={theme.primaryColor === preset.color ? "selected" : ""} aria-pressed={theme.primaryColor === preset.color} onClick={() => select({ primaryColor: preset.color, backgroundTone: preset.tone })}>{preset.label}</button>)}</div></fieldset>
+    <fieldset><legend>Accent</legend><div className="color-row">{colors.map((color) => <button key={color} type="button" className={theme.primaryColor === color ? "selected" : ""} style={{ backgroundColor: color }} onClick={() => select({ primaryColor: color })}><span className="sr-only">Use {color}</span></button>)}</div></fieldset>
+    {busy && <span className="editor-helper">Saving look…</span>}
+  </div>;
 }
 
 function ServicesEditor({
@@ -631,13 +419,17 @@ function ServicesEditor({
   busy,
   run,
   previewServices,
+  previewPortfolio,
   onPreview,
+  onPreviewPortfolio,
 }: {
   overview: Overview;
   busy: boolean;
   run: (message: string, action: () => Promise<unknown>) => void;
   previewServices: Service[];
+  previewPortfolio: PartnerSiteState["portfolio"];
   onPreview: (services: Service[]) => void;
+  onPreviewPortfolio: (portfolio: PartnerSiteState["portfolio"]) => void;
 }) {
   const [adding, setAdding] = useState(false);
   const draftServiceId = useRef("");
@@ -645,9 +437,13 @@ function ServicesEditor({
   const [draft, setDraft] = useState({
     name: "",
     description: "",
-    priceCents: "",
+    priceCents: "150",
+    priceMode: "fixed" as "fixed" | "from",
     durationMinutes: "120",
   });
+  const [customName, setCustomName] = useState(false);
+  const [customPrice, setCustomPrice] = useState(false);
+  const [customDuration, setCustomDuration] = useState(false);
   const updateDraft = (next: typeof draft) => {
     setDraft(next);
     const remaining = previewServices.filter((item) => item.id !== draftServiceId.current);
@@ -656,6 +452,7 @@ function ServicesEditor({
       name: next.name,
       description: next.description,
       priceCents: Number(next.priceCents) * 100 || 0,
+      priceMode: next.priceMode,
       durationMinutes: Number(next.durationMinutes) || 120,
       active: true,
       sortOrder: remaining.length,
@@ -672,6 +469,7 @@ function ServicesEditor({
         name: draft.name,
         description: draft.description,
         priceCents: Number(draft.priceCents) * 100,
+        priceMode: draft.priceMode,
         durationMinutes: Number(draft.durationMinutes),
         active: true,
       }));
@@ -680,7 +478,8 @@ function ServicesEditor({
       setDraft({
         name: "",
         description: "",
-        priceCents: "",
+        priceCents: "150",
+        priceMode: "fixed",
         durationMinutes: "120",
       });
     });
@@ -704,47 +503,28 @@ function ServicesEditor({
         </section>
       )}
       {overview.services.map((service) => (
-        <ServiceRow service={service} key={service.id} busy={busy} run={run} previewServices={previewServices} onPreview={onPreview} />
+        <ServiceRow
+          service={service}
+          key={service.id}
+          busy={busy}
+          run={run}
+          previewServices={previewServices}
+          previewPortfolio={previewPortfolio}
+          portfolioItems={overview.portfolio.filter((item) => item.serviceId === service.id)}
+          onPreview={onPreview}
+          onPreviewPortfolio={onPreviewPortfolio}
+        />
       ))}
       {adding ? (
         <form className="inline-form" onSubmit={add}>
-          <input
-            placeholder="Service name"
-            value={draft.name}
-            required
-            onChange={(event) =>
-              updateDraft({ ...draft, name: event.target.value })
-            }
-          />
-          <input
-            placeholder="Description"
-            value={draft.description}
-            onChange={(event) =>
-              updateDraft({ ...draft, description: event.target.value })
-            }
-          />
-          <input
-            type="number"
-            min="0"
-            placeholder="Price ($)"
-            value={draft.priceCents}
-            required
-            onChange={(event) =>
-              updateDraft({ ...draft, priceCents: event.target.value })
-            }
-          />
-          <input
-            type="number"
-            min="15"
-            step="15"
-            placeholder="Minutes"
-            value={draft.durationMinutes}
-            required
-            onChange={(event) =>
-              updateDraft({ ...draft, durationMinutes: event.target.value })
-            }
-          />
-          <button className="button small" disabled={busy}>
+          <fieldset><legend>What service do you offer?</legend><div className="choice-row profile-choice-row">{["Standard Cleaning", "Deep Cleaning", "Move Out Cleaning", "Office Cleaning", "Airbnb Turnover", "Carpet Cleaning", "Window Cleaning"].map((name) => <button type="button" key={name} className={draft.name === name ? "selected" : ""} aria-pressed={draft.name === name} onClick={() => { setCustomName(false); updateDraft({ ...draft, name }); }}>{name}</button>)}<button type="button" className={customName ? "selected" : ""} onClick={() => { setCustomName(true); updateDraft({ ...draft, name: "" }); }}>Other</button></div></fieldset>
+          {customName && <label>Service name<input value={draft.name} required onChange={(event) => updateDraft({ ...draft, name: event.target.value })} /></label>}
+          <fieldset><legend>Price</legend><div className="choice-row profile-choice-row">{[120, 150, 180].map((price) => <button type="button" key={price} className={draft.priceCents === String(price) && !customPrice ? "selected" : ""} onClick={() => { setCustomPrice(false); updateDraft({ ...draft, priceCents: String(price) }); }}>${price}</button>)}<button type="button" className={customPrice ? "selected" : ""} onClick={() => setCustomPrice(true)}>Custom</button></div></fieldset>
+          {customPrice && <label>Price in dollars<input type="number" min="0" value={draft.priceCents} onChange={(event) => updateDraft({ ...draft, priceCents: event.target.value })} required /></label>}
+          <fieldset><legend>Duration</legend><div className="choice-row profile-choice-row">{[120, 180, 240].map((minutes) => <button type="button" key={minutes} className={draft.durationMinutes === String(minutes) && !customDuration ? "selected" : ""} onClick={() => { setCustomDuration(false); updateDraft({ ...draft, durationMinutes: String(minutes) }); }}>{minutes / 60} hr</button>)}<button type="button" className={customDuration ? "selected" : ""} onClick={() => setCustomDuration(true)}>Custom</button></div></fieldset>
+          {customDuration && <label>Minutes<input type="number" min="15" step="15" value={draft.durationMinutes} onChange={(event) => updateDraft({ ...draft, durationMinutes: event.target.value })} required /></label>}
+          <fieldset><legend>Pricing</legend><div className="choice-row profile-choice-row"><button type="button" className={draft.priceMode === "fixed" ? "selected" : ""} onClick={() => updateDraft({ ...draft, priceMode: "fixed" })}>Fixed</button><button type="button" className={draft.priceMode === "from" ? "selected" : ""} onClick={() => updateDraft({ ...draft, priceMode: "from" })}>Starting from</button></div></fieldset>
+          <button className="button small" disabled={busy || !draft.name.trim()}>
             Add service
           </button>
           <button className="button secondary small" type="button" onClick={() => {
@@ -765,15 +545,22 @@ function ServiceRow({
   busy,
   run,
   previewServices,
+  previewPortfolio,
+  portfolioItems,
   onPreview,
+  onPreviewPortfolio,
 }: {
   service: Service;
   busy: boolean;
   run: (message: string, action: () => Promise<unknown>) => void;
   previewServices: Service[];
+  previewPortfolio: PartnerSiteState["portfolio"];
+  portfolioItems: PartnerSiteState["portfolio"];
   onPreview: (services: Service[]) => void;
+  onPreviewPortfolio: (portfolio: PartnerSiteState["portfolio"]) => void;
 }) {
   const [edit, setEdit] = useState(false);
+  const [showResults, setShowResults] = useState(false);
   const [draft, setDraft] = useState({
     name: service.name,
     description: service.description,
@@ -791,7 +578,7 @@ function ServiceRow({
     } : item));
   };
   return (
-    <article className="manage-card">
+    <article className={`manage-card service-manage-card ${edit ? "is-editing" : ""}`}>
       {edit ? (
         <>
           <input
@@ -888,18 +675,28 @@ function ServiceRow({
           </div>
         </>
       )}
+      {!edit && <>
+        <button className="service-results-toggle" type="button" aria-expanded={showResults} onClick={() => setShowResults((open) => !open)}>
+          <span><ImagePlus size={16} /> Before &amp; after</span>
+          <small>{portfolioItems.length ? `${portfolioItems.length} ${portfolioItems.length === 1 ? "result" : "results"}` : "Add photos"}</small>
+          <ChevronDown className={showResults ? "open" : ""} size={16} />
+        </button>
+        {showResults && <ServicePortfolioEditor service={service} portfolioItems={portfolioItems} busy={busy} run={run} previewPortfolio={previewPortfolio} onPreview={onPreviewPortfolio} />}
+      </>}
     </article>
   );
 }
 
-function GalleryEditor({
-  overview,
+function ServicePortfolioEditor({
+  service,
+  portfolioItems,
   busy,
   run,
   previewPortfolio,
   onPreview,
 }: {
-  overview: Overview;
+  service: Service;
+  portfolioItems: PartnerSiteState["portfolio"];
   busy: boolean;
   run: (message: string, action: () => Promise<unknown>) => void;
   previewPortfolio: PartnerSiteState["portfolio"];
@@ -908,6 +705,7 @@ function GalleryEditor({
   const [before, setBefore] = useState("");
   const [after, setAfter] = useState("");
   const [caption, setCaption] = useState("");
+  const [customCaption, setCustomCaption] = useState(false);
   const draftId = useRef(crypto.randomUUID());
   const draftRef = useRef({ before: "", after: "", caption: "" });
   const portfolioRef = useRef(previewPortfolio);
@@ -923,10 +721,11 @@ function GalleryEditor({
     const remaining = portfolioRef.current.filter((item) => item.id !== draftId.current);
     const portfolio = next.before && next.after ? [...remaining, {
       id: draftId.current,
+      serviceId: service.id,
       beforeImageUrl: next.before,
       afterImageUrl: next.after,
       caption: next.caption,
-      sortOrder: remaining.length,
+      sortOrder: remaining.filter((item) => item.serviceId === service.id).length,
     }] : remaining;
     portfolioRef.current = portfolio;
     onPreview(portfolio);
@@ -943,11 +742,7 @@ function GalleryEditor({
     });
   };
   return (
-    <div className="manage-list">
-      <p className="editor-helper">
-        Upload a real before and after pair. Both images are shown together on
-        your page.
-      </p>
+    <div className="manage-list service-portfolio-editor">
       <div className="gallery-drop-row">
         <label className="upload-box">
           {before ? (
@@ -984,17 +779,15 @@ function GalleryEditor({
           />
         </label>
       </div>
-      <input
-        placeholder="Caption (optional)"
-        value={caption}
-        onChange={(event) => updateDraft({ caption: event.target.value })}
-      />
+      <fieldset><legend>What space is this?</legend><div className="choice-row profile-choice-row">{["Kitchen", "Bathroom", "Bedroom", "Office", "Car"].map((space) => <button type="button" key={space} className={caption === `${space} clean` ? "selected" : ""} onClick={() => { setCustomCaption(false); updateDraft({ caption: `${space} clean` }); }}>{space}</button>)}<button type="button" className={customCaption ? "selected" : ""} onClick={() => setCustomCaption(true)}>Other</button></div></fieldset>
+      {customCaption && <input placeholder="Short caption (optional)" value={caption} onChange={(event) => updateDraft({ caption: event.target.value })} />}
       <button
         className="button"
         disabled={busy || !before || !after}
         onClick={() =>
           run("Before & after added.", async () => {
             const item = await requireAction(createPortfolioItemAction({
+              serviceId: service.id,
               beforeImageUrl: before,
               afterImageUrl: after,
               caption,
@@ -1008,7 +801,7 @@ function GalleryEditor({
       >
         <Plus size={16} /> Add before & after
       </button>
-      {overview.portfolio.map((item) => (
+      {portfolioItems.map((item) => (
         <article className="portfolio-row" key={item.id}>
           <img src={item.beforeImageUrl} alt="Before" />
           <img src={item.afterImageUrl} alt="After" />
@@ -1156,172 +949,34 @@ function EditorSection({
   );
 }
 
-function BookingEditor({
-  overview,
-  busy,
-  run,
-  onPreview,
-}: {
+function BookingEditor({ overview, run, onPreview }: {
   overview: Overview;
   busy: boolean;
   run: (message: string, action: () => Promise<unknown>) => void;
   onPreview: (update: PreviewUpdate) => void;
 }) {
-  const [config, setConfig] = useState<BookingConfig>(overview.booking);
   const [availability, setAvailability] = useState(overview.availability);
   const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const updateAvailabilityPreview = (
-    nextAvailability: PublicSite["availability"],
-  ) => {
-    setAvailability(nextAvailability);
-    onPreview({ availability: nextAvailability });
+  const saveAvailability = (next: PublicSite["availability"]) => {
+    setAvailability(next);
+    onPreview({ availability: next });
+    run("Hours saved.", () => requireAction(updateAvailabilityAction(next)));
   };
-  const updateBookingPreview = (nextConfig: BookingConfig) => {
-    setConfig(nextConfig);
-    onPreview({ booking: nextConfig });
-  };
-  const save = () =>
-    run("Booking settings saved.", async () => {
-      await requireAction(updateAvailabilityAction(availability));
-      await requireAction(updateBookingConfigAction(config));
-    });
-  return (
-    <form
-      className="editor-form"
-      onSubmit={(event) => {
-        event.preventDefault();
-        save();
-      }}
-    >
-      <EditorSection title="Availability" description="Choose the days and hours customers can request.">
-        <fieldset>
-          <legend>Days available</legend>
-          <div className="day-picker">
-          {dayLabels.map((label, day) => (
-            <button
-              aria-pressed={availability.weekdays.includes(day)}
-              type="button"
-              className={availability.weekdays.includes(day) ? "selected" : ""}
-              key={label}
-              onClick={() => {
-                const nextAvailability = {
-                  ...availability,
-                  weekdays: availability.weekdays.includes(day)
-                    ? availability.weekdays.filter((item) => item !== day)
-                    : [...availability.weekdays, day].sort(),
-                };
-                updateAvailabilityPreview(nextAvailability);
-              }}
-            >
-              {label}
-            </button>
-          ))}
-          </div>
-        </fieldset>
-        <div className="form-grid time-range-fields">
-          <label>
-            Start time
-            <input
-              type="time"
-              value={availability.startTime}
-              onChange={(event) =>
-                updateAvailabilityPreview({
-                  ...availability,
-                  startTime: event.target.value,
-                })
-              }
-            />
-          </label>
-          <label>
-            End time
-            <input
-              type="time"
-              value={availability.endTime}
-              onChange={(event) =>
-                updateAvailabilityPreview({
-                  ...availability,
-                  endTime: event.target.value,
-                })
-              }
-            />
-          </label>
-        </div>
-      </EditorSection>
-      <EditorSection title="Booking CTA" description="This is the button customers use to start booking.">
-        <label>
-          Button label
-          <input
-            value={config.ctaLabel}
-            onChange={(event) =>
-              updateBookingPreview({ ...config, ctaLabel: event.target.value })
-            }
-          />
-        </label>
-      </EditorSection>
-      <EditorSection title="Customer information" description="Choose what customers must provide with a booking.">
-        <div className="toggle-list compact setting-toggle-list">
-          {(["name", "phone", "email", "address", "notes"] as const).map(
-            (field) => (
-              <label key={field}>
-                <span>
-                  <b>{field[0].toUpperCase() + field.slice(1)}</b>
-                </span>
-                <input
-                  disabled={field === "name"}
-                  type="checkbox"
-                  checked={config.requiredFields[field]}
-                  onChange={() =>
-                    updateBookingPreview({
-                      ...config,
-                      requiredFields: {
-                        ...config.requiredFields,
-                        [field]: !config.requiredFields[field],
-                      },
-                    })
-                  }
-                />
-                <i />
-              </label>
-            ),
-          )}
-        </div>
-      </EditorSection>
-      <EditorSection title="Payment" description="Online payment is not enabled for this page.">
-        <label className="radio-option">
-          <input
-            type="radio"
-            checked={config.paymentMode === "none"}
-            onChange={() =>
-              updateBookingPreview({ ...config, paymentMode: "none" })
-            }
-          />{" "}
-          No online payment
-        </label>
-        <label className="radio-option muted">
-          <input type="radio" disabled /> Deposit (coming later)
-        </label>
-        <label className="radio-option muted">
-          <input type="radio" disabled /> Full payment (coming later)
-        </label>
-      </EditorSection>
-      <EditorSection title="Confirmation" description="Shown after a customer sends a booking request.">
-        <label>
-          Confirmation message
-          <textarea
-            rows={3}
-            value={config.confirmationMessage}
-            onChange={(event) =>
-              updateBookingPreview({
-                ...config,
-                confirmationMessage: event.target.value,
-              })
-            }
-          />
-        </label>
-      </EditorSection>
-      <button className="button" disabled={busy}>
-        <Save size={16} /> Save booking settings
-      </button>
-    </form>
-  );
+  const presets = [
+    { label: "Weekdays 9–5", weekdays: [1, 2, 3, 4, 5], startTime: "09:00", endTime: "17:00" },
+    { label: "Mon–Sat 9–6", weekdays: [1, 2, 3, 4, 5, 6], startTime: "09:00", endTime: "18:00" },
+    { label: "Every day", weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: "09:00", endTime: "17:00" },
+  ];
+  return <div className="editor-form">
+    <EditorSection title="Hours" description="Choose a schedule. Customers only see available booking times.">
+      <div className="choice-row profile-choice-row">{presets.map((preset) => <button type="button" key={preset.label} onClick={() => saveAvailability({ ...availability, weekdays: preset.weekdays, startTime: preset.startTime, endTime: preset.endTime })}>{preset.label}</button>)}</div>
+      <fieldset><legend>Days available</legend><div className="day-picker">{dayLabels.map((label, day) => <button key={label} type="button" aria-pressed={availability.weekdays.includes(day)} className={availability.weekdays.includes(day) ? "selected" : ""} onClick={() => {
+        const weekdays = availability.weekdays.includes(day) ? availability.weekdays.filter((item) => item !== day) : [...availability.weekdays, day].sort();
+        if (weekdays.length) saveAvailability({ ...availability, weekdays });
+      }}>{label}</button>)}</div></fieldset>
+      <div className="form-grid time-range-fields"><label>Start time<input type="time" value={availability.startTime} onChange={(event) => saveAvailability({ ...availability, startTime: event.target.value })} /></label><label>End time<input type="time" value={availability.endTime} onChange={(event) => saveAvailability({ ...availability, endTime: event.target.value })} /></label></div>
+    </EditorSection>
+    <EditorSection title="Booking" description="Your page is ready to accept booking requests."><div className="booking-default-card"><b>Online booking is on</b><span>Customers choose a service and an available time.</span></div></EditorSection>
+    <EditorSection title="Payment" description="Customers arrange payment with you after booking."><div className="booking-default-card"><b>Pay after service</b><span>No online payment is collected.</span></div></EditorSection>
+  </div>;
 }

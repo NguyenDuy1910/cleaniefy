@@ -2,21 +2,16 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   CalendarDays,
   Check,
   Copy,
   ExternalLink,
-  LayoutTemplate,
-  LoaderCircle,
   Palette,
   Share2,
 } from "lucide-react";
-import { updateThemeAction } from "@/features/partner/actions";
-import { TEMPLATE_CATALOG, type TemplateDefinition } from "@/templates/catalog";
-import type { Overview, PublicSite, TemplateKey } from "@/lib/types";
-import { SiteRenderer } from "@/templates/renderer";
+import { formatBookingTime } from "@/features/booking/format";
+import type { Overview } from "@/lib/types";
 
 const money = (cents: number) =>
   new Intl.NumberFormat("en-US", {
@@ -25,47 +20,9 @@ const money = (cents: number) =>
     maximumFractionDigits: 0,
   }).format(cents / 100);
 
-function templatePreview(
-  overview: Overview,
-  template: TemplateDefinition,
-): PublicSite {
-  return {
-    ...overview,
-    site: { ...overview.site, template: template.key, theme: template.theme },
-    metrics: {
-      rating: overview.metrics.rating,
-      reviewCount: overview.reviews.length,
-      completedJobs: overview.metrics.bookingCount,
-      views: overview.metrics.views,
-    },
-  };
-}
-
-function TemplatePreview({
-  overview,
-  template,
-}: {
-  overview: Overview;
-  template: TemplateDefinition;
-}) {
-  return (
-    <div className="template-preview" aria-hidden="true">
-      <div className="template-preview-scale">
-        <SiteRenderer
-          site={templatePreview(overview, template)}
-          compact
-          interactive={false}
-        />
-      </div>
-    </div>
-  );
-}
-
 export function DashboardHome({ overview }: { overview: Overview }) {
-  const router = useRouter();
-  const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
-  const [saving, setSaving] = useState<TemplateKey | null>(null);
+  const published = overview.partner.status === "published";
 
   const copy = async () => {
     if (!overview) return;
@@ -75,22 +32,9 @@ export function DashboardHome({ overview }: { overview: Overview }) {
     setCopied(true);
     setTimeout(() => setCopied(false), 1600);
   };
-  const selectTemplate = async (template: TemplateDefinition) => {
-    setSaving(template.key);
-    try {
-      const result = await updateThemeAction({ template: template.key, theme: template.theme });
-      if (result.error) throw new Error(result.error);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn’t change template.");
-    } finally {
-      setSaving(null);
-    }
-  };
-
   const url = `${location.host}/${overview.partner.slug}`;
   return (
-    <DashboardFrame active="overview" partnerSlug={overview.partner.slug}>
+    <DashboardFrame active="overview" partnerSlug={overview.partner.slug} published={published}>
       <header className="dashboard-heading">
         <div>
           <h1>Good morning</h1>
@@ -104,88 +48,31 @@ export function DashboardHome({ overview }: { overview: Overview }) {
           <Palette size={16} /> Edit page
         </Link>
       </header>
-      {error && <p className="form-error" role="alert">{error}</p>}
       <section className="current-page-card">
         <div>
           <span>YOUR PAGE</span>
           <a
-            href={`/${overview.partner.slug}`}
+            href={published ? `/${overview.partner.slug}` : "/dashboard/page/preview"}
             target="_blank"
             rel="noreferrer"
           >
-            {url}
+            {published ? url : "Preview your draft"}
             <ExternalLink size={13} />
           </a>
           <p>
-            {overview.metrics.views} views · {overview.metrics.bookingCount}{" "}
-            bookings · {overview.metrics.rating.toFixed(1)} rating
+            {published
+              ? `${overview.metrics.views} views · ${overview.metrics.bookingCount} bookings · ${overview.metrics.rating.toFixed(1)} rating`
+              : "Publish your page before sharing it with customers."}
           </p>
         </div>
         <div className="page-actions">
           <Link className="button secondary small" href="/dashboard/page">
             Edit page
           </Link>
-          <button className="button small" onClick={copy}>
+          {published && <button className="button small" onClick={copy}>
             {copied ? <Check size={14} /> : <Copy size={14} />}{" "}
             {copied ? "Copied" : "Share page"}
-          </button>
-        </div>
-      </section>
-      <section className="dashboard-section">
-        <div className="section-title">
-          <div>
-            <h2>Choose a starting point</h2>
-            <p>
-              All 10 templates render your saved services, proof, reviews, and
-              booking flow. Switching changes the live page—not a mock preview.
-            </p>
-          </div>
-          <LayoutTemplate size={21} />
-        </div>
-        <div className="template-cards">
-          {TEMPLATE_CATALOG.map((template) => {
-            const selected = overview.site.template === template.key;
-            return (
-              <article
-                className={`template-card ${selected ? "selected" : ""}`}
-                key={template.key}
-              >
-                <TemplatePreview overview={overview} template={template} />
-                <div className="template-card-copy">
-                  <span className="template-layout">
-                    {template.layout} layout
-                  </span>
-                  <h3>{template.title}</h3>
-                  <p>{template.description}</p>
-                </div>
-                <div className="template-card-actions">
-                  {selected ? (
-                    <a
-                      href={`/${overview.partner.slug}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      View live <ExternalLink size={12} />
-                    </a>
-                  ) : (
-                    <span>Preview updates when selected</span>
-                  )}
-                  <button
-                    disabled={saving === template.key || selected}
-                    aria-busy={saving === template.key}
-                    style={{ backgroundColor: template.theme.primaryColor }}
-                    onClick={() => selectTemplate(template)}
-                  >
-                    {saving === template.key
-                      ? <><LoaderCircle className="spin" size={14} /> Applying</>
-                      : selected
-                        ? "Selected"
-                        : "Use template"}
-                  </button>
-                </div>
-              </article>
-            );
-          })}
+          </button>}
         </div>
       </section>
       <section className="dashboard-section today">
@@ -201,10 +88,7 @@ export function DashboardHome({ overview }: { overview: Overview }) {
             {overview.todayBookings.map((booking) => (
               <article key={booking.id}>
                 <time>
-                  {new Date(booking.scheduledStart).toLocaleTimeString([], {
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
+                  {formatBookingTime(booking.scheduledStart)}
                 </time>
                 <div>
                   <b>{booking.customerName}</b>
@@ -230,12 +114,14 @@ export function DashboardHome({ overview }: { overview: Overview }) {
 export function DashboardFrame({
   children,
   active = "",
-  partnerSlug = "jessica",
+  partnerSlug,
+  published,
   wide = false,
 }: {
   children: React.ReactNode;
   active?: string;
-  partnerSlug?: string;
+  partnerSlug: string;
+  published: boolean;
   wide?: boolean;
 }) {
   return (
@@ -265,8 +151,8 @@ export function DashboardFrame({
           </Link>
           <Link href="/dashboard/settings">Settings</Link>
         </nav>
-        <Link className="sidebar-view" href={`/${partnerSlug}`} target="_blank">
-          <Share2 size={14} /> View live page
+        <Link className="sidebar-view" href={published ? `/${partnerSlug}` : "/dashboard/page/preview"} target="_blank">
+          <Share2 size={14} /> {published ? "View live page" : "Preview draft"}
         </Link>
       </aside>
       <main className={`dashboard-main ${wide ? "dashboard-main-wide" : ""}`}>{children}</main>

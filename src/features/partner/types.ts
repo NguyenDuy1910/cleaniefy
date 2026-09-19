@@ -37,18 +37,20 @@ export interface SectionConfig {
 export interface Partner {
   id: string;
   businessName: string;
+  serviceCategory: string;
   slug: string;
   tagline: string;
   serviceArea: string;
   profileImageUrl?: string | null;
   heroImageUrl?: string | null;
+  instagramUrl?: string | null;
   about?: string | null;
   status: "draft" | "published" | "suspended";
   publishedAt?: string | null;
 }
 
 export interface PartnerSiteState {
-  partner: Pick<Partner, "businessName" | "slug" | "tagline" | "serviceArea" | "profileImageUrl" | "heroImageUrl" | "about">;
+  partner: Pick<Partner, "businessName" | "serviceCategory" | "slug" | "tagline" | "serviceArea" | "profileImageUrl" | "heroImageUrl" | "instagramUrl" | "about">;
   site: { template: TemplateKey; theme: ThemeConfig; sections: SectionConfig };
   services: Service[];
   portfolio: PortfolioItem[];
@@ -68,7 +70,7 @@ export interface PublicSite extends PartnerSiteState {
 }
 
 export interface PublishRequirement {
-  key: "businessName" | "slug" | "service";
+  key: "businessName" | "profileImage" | "serviceArea" | "service" | "availability";
   label: string;
   complete: boolean;
 }

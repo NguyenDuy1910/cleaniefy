@@ -9,7 +9,6 @@ import {
   users,
 } from "@/db/schema";
 import { DomainError, ForbiddenError, isUniqueViolation } from "@/lib/errors";
-import { getTemplateDefinition } from "@/templates/catalog";
 import { LoginSchema, SignUpSchema } from "@/features/partner/schema";
 import { suggestPartnerSlug } from "@/features/partner/slugs";
 import { serializePartner } from "@/features/partner/serializers";
@@ -63,11 +62,10 @@ export async function createAccount(input: unknown) {
         .insert(partners)
         .values({ ownerUserId: user.id, businessName: data.businessName, slug })
         .returning();
-      const template = getTemplateDefinition("clean");
       await tx.insert(partnerSiteConfig).values({
         partnerId: partner.id,
         template: "clean",
-        themeConfig: template.theme,
+        themeConfig: { primaryColor: "#26573d", backgroundTone: "light", fontPreset: "modern", buttonStyle: "soft" },
         sectionsConfig: DEFAULT_SECTIONS,
       });
       await tx.insert(availabilityRules).values({

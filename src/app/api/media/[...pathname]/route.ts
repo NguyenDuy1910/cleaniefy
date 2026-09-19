@@ -1,45 +1,49 @@
 import { get } from "@vercel/blob";
-import { and, eq, like, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { partners, portfolioItems } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
-import { isPartnerMediaPath } from "@/lib/blob/paths";
+import { mediaPathFromUrl, parsePartnerMediaPath } from "@/lib/blob/paths";
 
 export const runtime = "nodejs";
 
 type Context = { params: Promise<{ pathname: string[] }> };
 
 async function canReadMedia(pathname: string) {
+  const media = parsePartnerMediaPath(pathname);
+  if (!media) return { allowed: false, public: false };
   const session = await getSession();
-  if (session) {
-    const [ownedPartner] = await db()
-      .select({ id: partners.id })
-      .from(partners)
-      .where(eq(partners.ownerUserId, session.userId));
-    if (ownedPartner && isPartnerMediaPath(pathname, ownedPartner.id)) return { allowed: true, public: false };
-  }
-
-  const suffix = `%/${pathname}`;
-  const [profile] = await db()
-    .select({ id: partners.id })
+  const [partner] = await db()
+    .select({
+      ownerUserId: partners.ownerUserId,
+      status: partners.status,
+      profileImageUrl: partners.profileImageUrl,
+      heroImageUrl: partners.heroImageUrl,
+    })
     .from(partners)
-    .where(and(eq(partners.status, "published"), or(like(partners.profileImageUrl, suffix), like(partners.heroImageUrl, suffix))))
+    .where(eq(partners.id, media.partnerId))
     .limit(1);
-  if (profile) return { allowed: true, public: true };
-  const [portfolio] = await db()
-    .select({ id: portfolioItems.id })
+  if (!partner) return { allowed: false, public: false };
+  if (session?.userId === partner.ownerUserId) return { allowed: true, public: false };
+  if (partner.status !== "published") return { allowed: false, public: false };
+  if ([partner.profileImageUrl, partner.heroImageUrl].some((url) => mediaPathFromUrl(url) === pathname)) {
+    return { allowed: true, public: true };
+  }
+  const portfolio = await db()
+    .select({ beforeImageUrl: portfolioItems.beforeImageUrl, afterImageUrl: portfolioItems.afterImageUrl })
     .from(portfolioItems)
-    .innerJoin(partners, eq(portfolioItems.partnerId, partners.id))
-    .where(and(eq(partners.status, "published"), or(like(portfolioItems.beforeImageUrl, suffix), like(portfolioItems.afterImageUrl, suffix))))
-    .limit(1);
-  return { allowed: Boolean(portfolio), public: Boolean(portfolio) };
+    .where(eq(portfolioItems.partnerId, media.partnerId));
+  const referenced = portfolio.some((item) =>
+    mediaPathFromUrl(item.beforeImageUrl) === pathname || mediaPathFromUrl(item.afterImageUrl) === pathname,
+  );
+  return { allowed: referenced, public: referenced };
 }
 
 export async function GET(request: Request, { params }: Context) {
   const { pathname: segments } = await params;
   const pathname = segments.join("/");
-  if (!isPartnerMediaPath(pathname)) return new NextResponse("Not found", { status: 404 });
+  if (!parsePartnerMediaPath(pathname)) return new NextResponse("Not found", { status: 404 });
   const access = await canReadMedia(pathname);
   if (!access.allowed) return new NextResponse("Not found", { status: 404 });
   const result = await get(pathname, {

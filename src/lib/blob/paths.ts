@@ -10,9 +10,20 @@ export function createPartnerMediaPath(partnerId: string, purpose: MediaPurpose)
   return `partners/${partnerId}/${purpose}/${crypto.randomUUID()}`;
 }
 
+export function parsePartnerMediaPath(pathname: string) {
+  const segments = pathname.split("/");
+  if (segments.length !== 4 || segments[0] !== "partners") return null;
+  const [, partnerId, purpose, filename] = segments;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(partnerId)) return null;
+  if (!isMediaPurpose(purpose)) return null;
+  if (filename.length < 1 || filename.length > 255 || filename.includes("..")) return null;
+  if (!/^[\p{L}\p{N}][\p{L}\p{N} ._-]*$/u.test(filename)) return null;
+  return { partnerId, purpose, filename };
+}
+
 export function isPartnerMediaPath(pathname: string, partnerId?: string) {
-  const prefix = partnerId ? `partners/${partnerId}/` : "partners/";
-  return new RegExp(`^${prefix}(profile|hero|before|after)/[0-9a-f-]+(?:\\.[A-Za-z0-9]+)?$`).test(pathname);
+  const parsed = parsePartnerMediaPath(pathname);
+  return parsed !== null && (!partnerId || parsed.partnerId === partnerId);
 }
 
 export function mediaUrl(pathname: string) {

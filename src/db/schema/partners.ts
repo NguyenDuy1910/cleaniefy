@@ -43,6 +43,7 @@ export const partners = pgTable(
       .unique()
       .references(() => users.id),
     businessName: varchar("business_name", { length: 140 }).notNull(),
+    serviceCategory: varchar("service_category", { length: 80 }).notNull().default("Home Cleaner"),
     slug: varchar("slug", { length: 40 }).notNull().unique(),
     tagline: varchar("tagline", { length: 240 })
       .notNull()
@@ -52,6 +53,7 @@ export const partners = pgTable(
       .default("Your local area"),
     profileImageUrl: varchar("profile_image_url", { length: 1000 }),
     heroImageUrl: varchar("hero_image_url", { length: 1000 }),
+    instagramUrl: varchar("instagram_url", { length: 1000 }),
     about: text("about"),
     status: varchar("status", { length: 20 }).notNull().default("draft"),
     publishedAt: timestamp("published_at", { withTimezone: true }),

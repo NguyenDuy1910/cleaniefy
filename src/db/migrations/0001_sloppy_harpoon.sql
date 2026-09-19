@@ -1,0 +1,1 @@
+ALTER TABLE "partners" ADD COLUMN "service_category" varchar(80) DEFAULT 'Home Cleaner' NOT NULL;

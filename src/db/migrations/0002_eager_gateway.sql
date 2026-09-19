@@ -1,0 +1,1 @@
+ALTER TABLE "services" ADD COLUMN "price_mode" varchar(12) DEFAULT 'fixed' NOT NULL;

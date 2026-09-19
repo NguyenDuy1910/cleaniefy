@@ -10,10 +10,16 @@ export const previewWidths: Record<PreviewDevice, number> = {
   mobile: 390,
 };
 
+export const previewHeights: Record<PreviewDevice, number> = {
+  desktop: 800,
+  tablet: 1024,
+  mobile: 844,
+};
+
 const devices = [
-  { key: "desktop", label: "Desktop", Icon: Monitor },
-  { key: "tablet", label: "Tablet", Icon: Tablet },
-  { key: "mobile", label: "Mobile", Icon: Smartphone },
+  { key: "desktop", label: "MacBook", device: "MacBook Pro", Icon: Monitor },
+  { key: "tablet", label: "iPad", device: "iPad Pro", Icon: Tablet },
+  { key: "mobile", label: "iPhone", device: "iPhone 15", Icon: Smartphone },
 ] as const;
 
 export function PreviewToolbar({
@@ -32,17 +38,18 @@ export function PreviewToolbar({
       <span>LIVE PREVIEW</span>
       <div className="preview-toolbar-actions">
         <div className="preview-devices" aria-label="Preview viewport">
-          {devices.map(({ key, label, Icon }) => (
+          {devices.map(({ key, label, device: deviceName, Icon }) => (
             <button
-              aria-label={`${label} preview, ${previewWidths[key]} pixels wide`}
+              aria-label={`${deviceName} preview, ${previewWidths[key]} pixels wide`}
               aria-pressed={device === key}
               className={device === key ? "active" : ""}
               key={key}
               onClick={() => onDeviceChange(key)}
-              title={`${label} · ${previewWidths[key]}px`}
+              title={`${deviceName} · ${previewWidths[key]}px`}
               type="button"
             >
               <Icon size={15} />
+              <span>{label}</span>
             </button>
           ))}
         </div>

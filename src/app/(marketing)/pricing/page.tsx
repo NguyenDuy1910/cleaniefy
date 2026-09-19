@@ -9,7 +9,6 @@ export default function PricingPage() {
       <nav className="marketing-nav" aria-label="Primary navigation">
         <Link className="wordmark" href="/">cleanie</Link>
         <div className="nav-links">
-          <Link href="/templates">Templates</Link>
           <Link href="/login">Log in</Link>
           <Link className="button small" href="/signup">Create your page</Link>
         </div>

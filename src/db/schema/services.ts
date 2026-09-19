@@ -11,6 +11,7 @@ export const services = pgTable("services", {
   name: varchar("name", { length: 120 }).notNull(),
   description: varchar("description", { length: 400 }).notNull().default(""),
   priceCents: integer("price_cents").notNull(),
+  priceMode: varchar("price_mode", { length: 12 }).notNull().default("fixed"),
   durationMinutes: integer("duration_minutes").notNull(),
   active: boolean("active").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),

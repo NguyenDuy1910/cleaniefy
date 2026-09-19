@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import type { PartnerSiteState } from "@/features/partner/types";
+import { PublicSiteLoading } from "@/components/ui/loading-states";
 import { SiteRenderer } from "@/templates/renderer";
 import { parsePreviewMessage, type PreviewEvent } from "./preview-messages";
 
-export function PreviewRuntime({ initialSite }: { initialSite: PartnerSiteState }) {
+export function PreviewRuntime({ initialSite }: { initialSite: PartnerSiteState | null }) {
   const [site, setSite] = useState(initialSite);
   const [resetKey, setResetKey] = useState(0);
 
@@ -28,7 +29,7 @@ export function PreviewRuntime({ initialSite }: { initialSite: PartnerSiteState 
 
   return (
     <>
-      <SiteRenderer site={site} mode="preview" resetKey={resetKey} />
+      {site ? <SiteRenderer site={site} mode="preview" resetKey={resetKey} /> : <PublicSiteLoading />}
       <span className="preview-mode-badge">Preview mode</span>
     </>
   );

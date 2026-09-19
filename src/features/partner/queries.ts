@@ -113,6 +113,9 @@ export async function getPartnerOverview(partnerId: string): Promise<Overview> {
     .where(and(eq(bookings.partnerId, partner.id), gte(bookings.scheduledStart, startOfToday), lt(bookings.scheduledStart, startOfTomorrow)))
     .orderBy(asc(bookings.scheduledStart));
   const activeService = relations.services.some((service) => service.active);
+  const hasProfileImage = Boolean(partner.profileImageUrl);
+  const hasArea = Boolean(partner.serviceArea.trim() && partner.serviceArea !== "Your local area");
+  const hasAvailability = relations.availability.weekdays.length > 0;
   const rating = relations.reviews.length
     ? relations.reviews.reduce((sum, review) => sum + review.rating, 0) / relations.reviews.length
     : 5;
@@ -126,11 +129,13 @@ export async function getPartnerOverview(partnerId: string): Promise<Overview> {
     },
     todayBookings: todayRows.map(({ booking, service }) => serializeBooking(booking, service ? serializeService(service) : null)),
     publishReadiness: {
-      ready: Boolean(partner.businessName.trim()) && Boolean(partner.slug) && activeService,
+      ready: Boolean(partner.businessName.trim()) && hasProfileImage && hasArea && activeService && hasAvailability,
       requirements: [
         { key: "businessName", label: "Business name", complete: Boolean(partner.businessName.trim()) },
-        { key: "slug", label: "Cleanie link", complete: Boolean(partner.slug) },
+        { key: "profileImage", label: "Profile photo", complete: hasProfileImage },
+        { key: "serviceArea", label: "Service area", complete: hasArea },
         { key: "service", label: "One visible service", complete: activeService },
+        { key: "availability", label: "Availability", complete: hasAvailability },
       ],
     },
   };

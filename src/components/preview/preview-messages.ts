@@ -4,11 +4,13 @@ import { TEMPLATE_KEYS, type Overview, type PartnerSiteState, type PublicSite } 
 const previewSiteSchema = z.object({
   partner: z.object({
     businessName: z.string(),
+    serviceCategory: z.string(),
     slug: z.string(),
     tagline: z.string(),
     serviceArea: z.string(),
     profileImageUrl: z.string().nullish(),
     heroImageUrl: z.string().nullish(),
+    instagramUrl: z.string().nullish(),
     about: z.string().nullish(),
   }),
   site: z.object({
@@ -24,11 +26,11 @@ const previewSiteSchema = z.object({
     }),
   }),
   services: z.array(z.object({
-    id: z.string(), name: z.string(), description: z.string(), priceCents: z.number().finite(),
+    id: z.string(), name: z.string(), description: z.string(), priceCents: z.number().finite(), priceMode: z.enum(["fixed", "from"]),
     durationMinutes: z.number().finite(), active: z.boolean(), sortOrder: z.number().finite(),
   })).max(100),
   portfolio: z.array(z.object({
-    id: z.string(), beforeImageUrl: z.string(), afterImageUrl: z.string(),
+    id: z.string(), serviceId: z.string().nullish(), beforeImageUrl: z.string(), afterImageUrl: z.string(),
     caption: z.string().nullish(), sortOrder: z.number().finite(),
   })).max(100),
   reviews: z.array(z.object({
@@ -70,19 +72,19 @@ export function toPartnerSiteState(source: Overview | PublicSite): PartnerSiteSt
   const { partner, site, services, portfolio, reviews, availability, booking, metrics } = source;
   return {
     partner: {
-      businessName: partner.businessName, slug: partner.slug, tagline: partner.tagline,
+      businessName: partner.businessName, serviceCategory: partner.serviceCategory, slug: partner.slug, tagline: partner.tagline,
       serviceArea: partner.serviceArea, profileImageUrl: partner.profileImageUrl,
-      heroImageUrl: partner.heroImageUrl, about: partner.about,
+      heroImageUrl: partner.heroImageUrl, instagramUrl: partner.instagramUrl, about: partner.about,
     },
     site: {
       template: site.template,
       theme: { ...site.theme },
       sections: { ...site.sections },
     },
-    services: services.map(({ id, name, description, priceCents, durationMinutes, active, sortOrder }) =>
-      ({ id, name, description, priceCents, durationMinutes, active, sortOrder })),
-    portfolio: portfolio.map(({ id, beforeImageUrl, afterImageUrl, caption, sortOrder }) =>
-      ({ id, beforeImageUrl, afterImageUrl, caption, sortOrder })),
+    services: services.map(({ id, name, description, priceCents, priceMode, durationMinutes, active, sortOrder }) =>
+      ({ id, name, description, priceCents, priceMode, durationMinutes, active, sortOrder })),
+    portfolio: portfolio.map(({ id, serviceId, beforeImageUrl, afterImageUrl, caption, sortOrder }) =>
+      ({ id, serviceId, beforeImageUrl, afterImageUrl, caption, sortOrder })),
     reviews: reviews.map(({ id, author, rating, text, source: reviewSource, sourceUrl, featured }) =>
       ({ id, author, rating, text, source: reviewSource, sourceUrl, featured })),
     availability: { ...availability, weekdays: [...availability.weekdays] },

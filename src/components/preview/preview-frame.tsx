@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { PartnerSiteState } from "@/features/partner/types";
 import { type PreviewEvent, type PreviewMessage } from "./preview-messages";
-import { PreviewToolbar, previewWidths, type PreviewDevice } from "./preview-toolbar";
+import { PreviewToolbar, previewHeights, previewWidths, type PreviewDevice } from "./preview-toolbar";
 
 const previewPath = "/dashboard/page/preview";
 
@@ -81,9 +81,21 @@ export function PreviewFrame({ site, open }: { site: PartnerSiteState; open: boo
   };
 
   const viewportWidth = previewWidths[device];
-  const scale = Math.min(1, Math.max(0.1, (size.width - 24) / viewportWidth));
-  const visualWidth = viewportWidth * scale;
-  const frameHeight = Math.max(400, Math.floor((size.height - 24) / scale));
+  const viewportHeight = previewHeights[device];
+  const deviceChrome = device === "desktop"
+    ? { horizontal: 32, vertical: 50, label: "MacBook Pro" }
+    : device === "tablet"
+      ? { horizontal: 24, vertical: 24, label: "iPad Pro" }
+      : { horizontal: 20, vertical: 20, label: "iPhone 15" };
+  const deviceWidth = viewportWidth + deviceChrome.horizontal;
+  const deviceHeight = viewportHeight + deviceChrome.vertical;
+  const scale = Math.min(
+    1,
+    Math.max(0.1, (size.width - 24) / deviceWidth),
+    Math.max(0.1, (size.height - 24) / deviceHeight),
+  );
+  const visualWidth = deviceWidth * scale;
+  const visualHeight = deviceHeight * scale;
 
   return (
     <aside className={`editor-preview ${open ? "mobile-preview-open" : ""}`} aria-label="Interactive page preview" id="live-preview" ref={rootRef}>
@@ -98,26 +110,36 @@ export function PreviewFrame({ site, open }: { site: PartnerSiteState; open: boo
             <div className="skeleton preview-loading-card" />
           </div>
         )}
-        <iframe
-          ref={frameRef}
-          title={`${device} interactive page preview`}
-          src={previewPath}
-          className="preview-iframe"
+        <div
+          className={`preview-device preview-device-${device}`}
           style={{
-            width: viewportWidth,
-            height: frameHeight,
+            width: deviceWidth,
+            height: deviceHeight,
             left: (size.width - visualWidth) / 2,
+            top: Math.max(12, (size.height - visualHeight) / 2),
             transform: `scale(${scale})`,
             visibility: ready ? "visible" : "hidden",
           }}
-          onLoad={() => {
-            setReady(false);
-            frameRef.current?.contentWindow?.postMessage(
-              { type: "CLEANIE_PREVIEW_STATE", payload: siteRef.current } satisfies PreviewMessage,
-              window.location.origin,
-            );
-          }}
-        />
+        >
+          <span aria-hidden="true" className="preview-device-camera" />
+          <span aria-hidden="true" className="preview-device-notch" />
+          <span aria-hidden="true" className="preview-device-label">{deviceChrome.label}</span>
+          <div className="preview-device-screen" style={{ width: viewportWidth, height: viewportHeight }}>
+            <iframe
+              ref={frameRef}
+              title={`${deviceChrome.label} interactive page preview`}
+              src={`${previewPath}?embedded=1`}
+              className="preview-iframe"
+              onLoad={() => {
+                setReady(true);
+                frameRef.current?.contentWindow?.postMessage(
+                  { type: "CLEANIE_PREVIEW_STATE", payload: siteRef.current } satisfies PreviewMessage,
+                  window.location.origin,
+                );
+              }}
+            />
+          </div>
+        </div>
       </div>
     </aside>
   );

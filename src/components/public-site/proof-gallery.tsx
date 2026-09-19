@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import type { PortfolioItem } from "@/features/portfolio/types";
 import { SiteImage } from "./site-image";
@@ -14,19 +14,20 @@ function ImagePair({ item }: { item: PortfolioItem }) {
   );
 }
 
-export function ProofGallery({ portfolio }: { portfolio: PortfolioItem[] }) {
+export function ProofGallery({ portfolio, compact = false }: { portfolio: PortfolioItem[]; compact?: boolean }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const titleId = useId();
   if (!portfolio.length) return null;
   const selected = portfolio[Math.min(selectedIndex, portfolio.length - 1)];
 
   return (
-    <section className="site-proof" aria-labelledby="proof-title">
-      <h2 id="proof-title">Work you can see</h2>
+    <section className={`site-proof ${compact ? "service-proof" : ""}`} aria-labelledby={titleId}>
+      {compact ? <h4 id={titleId}>Recent result</h4> : <h2 className="visually-hidden" id={titleId}>Work gallery</h2>}
       <ImagePair item={portfolio[0]} />
       {portfolio[0].caption && <p>{portfolio[0].caption}</p>}
       <button className="site-gallery-open" type="button" onClick={() => { setSelectedIndex(0); dialogRef.current?.showModal(); }}>
-        View gallery{portfolio.length > 1 ? ` · ${portfolio.length} projects` : ""}
+        {compact ? "View work" : "Open gallery"}{portfolio.length > 1 ? ` · ${portfolio.length} projects` : ""}
       </button>
       <dialog className="site-gallery-dialog" ref={dialogRef} aria-label="Before and after gallery">
         <div className="site-gallery-dialog-header">

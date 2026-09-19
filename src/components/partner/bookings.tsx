@@ -1,5 +1,6 @@
 import { MapPin, Phone, CalendarDays } from "lucide-react";
 import type { Booking } from "@/lib/types";
+import { formatBookingDate, formatBookingTime } from "@/features/booking/format";
 import { DashboardFrame } from "./dashboard-home";
 
 const money = (cents: number) =>
@@ -12,12 +13,14 @@ const money = (cents: number) =>
 export function BookingsView({
   bookings,
   partnerSlug,
+  published,
 }: {
   bookings: Booking[];
   partnerSlug: string;
+  published: boolean;
 }) {
   return (
-    <DashboardFrame active="bookings" partnerSlug={partnerSlug}>
+    <DashboardFrame active="bookings" partnerSlug={partnerSlug} published={published}>
       <header className="dashboard-heading">
         <div>
           <h1>Bookings</h1>
@@ -30,17 +33,10 @@ export function BookingsView({
             <article key={booking.id}>
               <time>
                 <b>
-                  {new Date(booking.scheduledStart).toLocaleDateString([], {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                  })}
+                  {formatBookingDate(booking.scheduledStart)}
                 </b>
                 <span>
-                  {new Date(booking.scheduledStart).toLocaleTimeString([], {
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
+                  {formatBookingTime(booking.scheduledStart)}
                 </span>
               </time>
               <div className="booking-list-main">

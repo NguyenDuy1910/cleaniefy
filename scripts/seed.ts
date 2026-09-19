@@ -12,7 +12,6 @@ import {
   users,
 } from "@/db/schema";
 import { hashPassword } from "@/features/auth/service";
-import { getTemplateDefinition } from "@/templates/catalog";
 import type { TemplateKey } from "@/lib/types";
 
 const demoUsers: Array<{
@@ -58,11 +57,10 @@ async function seed() {
         status: "published",
         publishedAt: new Date(),
       }).returning();
-      const template = getTemplateDefinition(demo.template);
       await tx.insert(partnerSiteConfig).values({
         partnerId: partner.id,
         template: demo.template,
-        themeConfig: template.theme,
+        themeConfig: { primaryColor: "#26573d", backgroundTone: "light", fontPreset: "modern", buttonStyle: "soft" },
         sectionsConfig: { services: true, portfolio: true, reviews: true, about: true },
       });
       await tx.insert(availabilityRules).values({ partnerId: partner.id, weekdays: [1, 2, 3, 4, 5], startTime: "09:00", endTime: "17:00", slotIntervalMinutes: 60 });
@@ -85,6 +83,7 @@ async function seed() {
       ]);
       await tx.insert(portfolioItems).values({
         partnerId: partner.id,
+        serviceId: seededServices[0]!.id,
         beforeImageUrl: demo.image,
         afterImageUrl: demo.image.endsWith("jessica.png") ? "/demo/warm-home.png" : "/demo/jessica.png",
         caption: "A fresh start for a busy home",
